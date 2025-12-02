@@ -18,21 +18,24 @@ public class ServicioListaDeseos {
      * Agrega un producto a la lista de deseos
      */
     public boolean agregar(int codigoCliente, int codigoProducto) {
-        return listaDeseosDAO.agregar(codigoCliente, codigoProducto, false);
+        boolean agregado = listaDeseosDAO.agregar(codigoCliente, codigoProducto, false);
+        return agregado;
     }
     
     /**
      * Agrega un producto con opción de notificación cuando haya stock
      */
     public boolean agregarConNotificacion(int codigoCliente, int codigoProducto, boolean notificar) {
-        return listaDeseosDAO.agregar(codigoCliente, codigoProducto, notificar);
+        boolean agregado = listaDeseosDAO.agregar(codigoCliente, codigoProducto, notificar);
+        return agregado;
     }
     
     /**
      * Verifica si un producto está en la lista de deseos
      */
     public boolean estaEnListaDeseos(int codigoCliente, int codigoProducto) {
-        return listaDeseosDAO.existe(codigoCliente, codigoProducto);
+        boolean existe = listaDeseosDAO.existe(codigoCliente, codigoProducto);
+        return existe;
     }
     
     /**
@@ -46,14 +49,16 @@ public class ServicioListaDeseos {
      * Elimina un producto de la lista de deseos
      */
     public boolean eliminar(int codigoCliente, int codigoProducto) {
-        return listaDeseosDAO.eliminar(codigoCliente, codigoProducto);
+        boolean eliminado = listaDeseosDAO.eliminar(codigoCliente, codigoProducto);
+        return eliminado;
     }
     
     /**
      * Vacía la lista de deseos
      */
     public boolean vaciar(int codigoCliente) {
-        return listaDeseosDAO.vaciar(codigoCliente);
+        boolean vaciada = listaDeseosDAO.vaciar(codigoCliente);
+        return vaciada;
     }
     
     /**
@@ -61,27 +66,31 @@ public class ServicioListaDeseos {
      * @return true si se agregó, false si se eliminó
      */
     public boolean alternar(int codigoCliente, int codigoProducto) {
+        boolean agregado;
         if (listaDeseosDAO.existe(codigoCliente, codigoProducto)) {
             listaDeseosDAO.eliminar(codigoCliente, codigoProducto);
-            return false;
+            agregado = false;
         } else {
             listaDeseosDAO.agregar(codigoCliente, codigoProducto, false);
-            return true;
+            agregado = true;
         }
+        return agregado;
     }
     
     /**
      * Actualiza la preferencia de notificación
      */
     public boolean actualizarNotificacion(int codigoCliente, int codigoProducto, boolean notificar) {
-        return listaDeseosDAO.actualizarNotificacion(codigoCliente, codigoProducto, notificar);
+        boolean actualizado = listaDeseosDAO.actualizarNotificacion(codigoCliente, codigoProducto, notificar);
+        return actualizado;
     }
     
     /**
      * Mueve un item de la lista de deseos al carrito
      */
     public boolean moverAlCarrito(int codigoCliente, int codigoProducto) {
-        return listaDeseosDAO.moverAlCarrito(codigoCliente, codigoProducto);
+        boolean movido = listaDeseosDAO.moverAlCarrito(codigoCliente, codigoProducto);
+        return movido;
     }
     
     /**
@@ -103,6 +112,7 @@ public class ServicioListaDeseos {
      * Verifica si hay productos disponibles para notificar
      */
     public boolean hayProductosParaNotificar(int codigoCliente) {
-        return !listaDeseosDAO.obtenerParaNotificar(codigoCliente).isEmpty();
+        boolean hayDisponibles = !listaDeseosDAO.obtenerParaNotificar(codigoCliente).isEmpty();
+        return hayDisponibles;
     }
 }

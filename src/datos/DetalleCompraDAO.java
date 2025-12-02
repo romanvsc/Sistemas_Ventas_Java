@@ -14,6 +14,7 @@ public class DetalleCompraDAO {
 
     // CREATE - Insertar un detalle de compra (usado internamente por CompraDAO)
     public boolean insertar(DetalleCompra detalle, Connection conn) {
+        boolean resultado = false;
         String sql = "INSERT INTO DetalleCompra (NumeroCompra, CodigoProducto, Cantidad) VALUES (?, ?, ?)";
         
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -22,22 +23,26 @@ public class DetalleCompraDAO {
             stmt.setInt(3, detalle.getCantidad());
             
             int filasAfectadas = stmt.executeUpdate();
-            return filasAfectadas > 0;
+            resultado = filasAfectadas > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al insertar detalle de compra: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
 
     // CREATE - Insertar un detalle de compra (versión pública)
     public boolean insertar(DetalleCompra detalle) {
+        boolean resultado = false;
+        
         try (Connection conn = conexionMySQL.obtenerConexion()) {
-            return insertar(detalle, conn);
+            resultado = insertar(detalle, conn);
         } catch (SQLException e) {
             System.err.println("Error al obtener conexión: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
 
     // READ - Listar detalles por número de compra
@@ -108,6 +113,7 @@ public class DetalleCompraDAO {
 
     // UPDATE - Actualizar cantidad de un detalle
     public boolean actualizar(DetalleCompra detalle) {
+        boolean resultado = false;
         String sql = "UPDATE DetalleCompra SET Cantidad = ? WHERE NumeroCompra = ? AND CodigoProducto = ?";
         
         try (Connection conn = conexionMySQL.obtenerConexion();
@@ -118,16 +124,18 @@ public class DetalleCompraDAO {
             stmt.setInt(3, detalle.getCodigoProducto());
             
             int filasAfectadas = stmt.executeUpdate();
-            return filasAfectadas > 0;
+            resultado = filasAfectadas > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al actualizar detalle: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
 
     // DELETE - Eliminar un detalle específico
     public boolean eliminar(int numeroCompra, int codigoProducto) {
+        boolean resultado = false;
         String sql = "DELETE FROM DetalleCompra WHERE NumeroCompra = ? AND CodigoProducto = ?";
         
         try (Connection conn = conexionMySQL.obtenerConexion();
@@ -137,36 +145,42 @@ public class DetalleCompraDAO {
             stmt.setInt(2, codigoProducto);
             
             int filasAfectadas = stmt.executeUpdate();
-            return filasAfectadas > 0;
+            resultado = filasAfectadas > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al eliminar detalle: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
 
     // DELETE - Eliminar todos los detalles de una compra (usado internamente por CompraDAO)
     public boolean eliminarPorCompra(int numeroCompra, Connection conn) {
+        boolean resultado = false;
         String sql = "DELETE FROM DetalleCompra WHERE NumeroCompra = ?";
         
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, numeroCompra);
             stmt.executeUpdate();
-            return true;
+            resultado = true;
             
         } catch (SQLException e) {
             System.err.println("Error al eliminar detalles de compra: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
 
     // DELETE - Eliminar todos los detalles de una compra (versión pública)
     public boolean eliminarPorCompra(int numeroCompra) {
+        boolean resultado = false;
+        
         try (Connection conn = conexionMySQL.obtenerConexion()) {
-            return eliminarPorCompra(numeroCompra, conn);
+            resultado = eliminarPorCompra(numeroCompra, conn);
         } catch (SQLException e) {
             System.err.println("Error al obtener conexión: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
 }

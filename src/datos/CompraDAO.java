@@ -20,6 +20,7 @@ public class CompraDAO {
     public boolean insertar(Compra compra) {
         String sql = "INSERT INTO Compra (Fecha, CodigoCliente) VALUES (?, ?)";
         Connection conn = null;
+        boolean resultado = false;
         
         try {
             conn = conexionMySQL.obtenerConexion();
@@ -39,23 +40,29 @@ public class CompraDAO {
                             compra.setNumeroCompra(numeroCompra);
                             
                             // Insertar los detalles de la compra
+                            boolean detallesInsertados = true;
                             for (DetalleCompra detalle : compra.getDetalles()) {
                                 detalle.setNumeroCompra(numeroCompra);
                                 if (!detalleCompraDAO.insertar(detalle, conn)) {
-                                    conn.rollback();
-                                    return false;
+                                    detallesInsertados = false;
+                                    break;
                                 }
                             }
                             
-                            conn.commit(); // Confirmar transacción
-                            return true;
+                            if (detallesInsertados) {
+                                conn.commit(); // Confirmar transacción
+                                resultado = true;
+                            } else {
+                                conn.rollback();
+                            }
                         }
                     }
                 }
             }
             
-            conn.rollback();
-            return false;
+            if (!resultado) {
+                conn.rollback();
+            }
             
         } catch (SQLException e) {
             System.err.println("Error al insertar compra: " + e.getMessage());
@@ -66,7 +73,6 @@ public class CompraDAO {
                     System.err.println("Error al hacer rollback: " + ex.getMessage());
                 }
             }
-            return false;
         } finally {
             if (conn != null) {
                 try {
@@ -76,6 +82,8 @@ public class CompraDAO {
                 }
             }
         }
+        
+        return resultado;
     }
 
     // READ - Obtener compra por número
@@ -181,6 +189,7 @@ public class CompraDAO {
     // UPDATE - Actualizar compra (solo fecha y cliente, no detalles)
     public boolean actualizar(Compra compra) {
         String sql = "UPDATE Compra SET Fecha = ?, CodigoCliente = ? WHERE NumeroCompra = ?";
+        boolean resultado = false;
         
         try (Connection conn = conexionMySQL.obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -190,42 +199,44 @@ public class CompraDAO {
             stmt.setInt(3, compra.getNumeroCompra());
             
             int filasAfectadas = stmt.executeUpdate();
-            return filasAfectadas > 0;
+            resultado = filasAfectadas > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al actualizar compra: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
 
     // DELETE - Eliminar compra y sus detalles (transacción)
     public boolean eliminar(int numeroCompra) {
         Connection conn = null;
+        boolean resultado = false;
         
         try {
             conn = conexionMySQL.obtenerConexion();
             conn.setAutoCommit(false); // Iniciar transacción
             
             // Primero eliminar los detalles
-            if (!detalleCompraDAO.eliminarPorCompra(numeroCompra, conn)) {
-                conn.rollback();
-                return false;
-            }
+            boolean detallesEliminados = detalleCompraDAO.eliminarPorCompra(numeroCompra, conn);
             
-            // Luego eliminar la compra
-            String sql = "DELETE FROM Compra WHERE NumeroCompra = ?";
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setInt(1, numeroCompra);
-                int filasAfectadas = stmt.executeUpdate();
-                
-                if (filasAfectadas > 0) {
-                    conn.commit(); // Confirmar transacción
-                    return true;
+            if (detallesEliminados) {
+                // Luego eliminar la compra
+                String sql = "DELETE FROM Compra WHERE NumeroCompra = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    stmt.setInt(1, numeroCompra);
+                    int filasAfectadas = stmt.executeUpdate();
+                    
+                    if (filasAfectadas > 0) {
+                        conn.commit(); // Confirmar transacción
+                        resultado = true;
+                    } else {
+                        conn.rollback();
+                    }
                 }
+            } else {
+                conn.rollback();
             }
-            
-            conn.rollback();
-            return false;
             
         } catch (SQLException e) {
             System.err.println("Error al eliminar compra: " + e.getMessage());
@@ -236,7 +247,6 @@ public class CompraDAO {
                     System.err.println("Error al hacer rollback: " + ex.getMessage());
                 }
             }
-            return false;
         } finally {
             if (conn != null) {
                 try {
@@ -246,6 +256,8 @@ public class CompraDAO {
                 }
             }
         }
+        
+        return resultado;
     }
 
     // ==================== REPORTES Y ESTADÍSTICAS ====================
@@ -299,20 +311,21 @@ public class CompraDAO {
      */
     public double obtenerTotalVentas() {
         String sql = "SELECT COALESCE(SUM(dc.Cantidad * p.Precio), 0) as Total FROM DetalleCompra dc INNER JOIN Producto p ON dc.CodigoProducto = p.Codigo";
+        double total = 0.0;
         
         try (Connection conn = conexionMySQL.obtenerConexion();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             
             if (rs.next()) {
-                return rs.getDouble("Total");
+                total = rs.getDouble("Total");
             }
             
         } catch (SQLException e) {
             System.err.println("Error al obtener total de ventas: " + e.getMessage());
         }
         
-        return 0.0;
+        return total;
     }
 
     /**
@@ -321,19 +334,20 @@ public class CompraDAO {
      */
     public int obtenerCantidadProductosVendidos() {
         String sql = "SELECT COALESCE(SUM(Cantidad), 0) as Total FROM DetalleCompra";
+        int total = 0;
         
         try (Connection conn = conexionMySQL.obtenerConexion();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             
             if (rs.next()) {
-                return rs.getInt("Total");
+                total = rs.getInt("Total");
             }
             
         } catch (SQLException e) {
             System.err.println("Error al obtener cantidad de productos vendidos: " + e.getMessage());
         }
         
-        return 0;
+        return total;
     }
 }

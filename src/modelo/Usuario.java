@@ -6,8 +6,6 @@ public class Usuario {
     private String usuario;
     private String contrasena;
     private double presupuesto;
-    
-    // Nuevos campos para gestión avanzada de usuarios
     private String email;
     private String telefono;
     private String direccion;
@@ -130,18 +128,25 @@ public class Usuario {
      * Verifica si el usuario tiene configurada la recuperación de contraseña
      */
     public boolean tieneRecuperacionConfigurada() {
-        return preguntaSeguridad != null && !preguntaSeguridad.isEmpty() &&
-               respuestaSeguridad != null && !respuestaSeguridad.isEmpty();
+        boolean resultado = false;
+        if (preguntaSeguridad != null && !preguntaSeguridad.isEmpty() &&
+            respuestaSeguridad != null && !respuestaSeguridad.isEmpty()) {
+            resultado = true;
+        }
+        return resultado;
     }
     
     /**
      * Verifica la respuesta de seguridad
      */
     public boolean verificarRespuestaSeguridad(String respuesta) {
-        if (respuestaSeguridad == null || respuesta == null) {
-            return false;
+        boolean resultado = false;
+        if (respuestaSeguridad != null && respuesta != null) {
+            if (respuestaSeguridad.equalsIgnoreCase(respuesta.trim())) {
+                resultado = true;
+            }
         }
-        return respuestaSeguridad.equalsIgnoreCase(respuesta.trim());
+        return resultado;
     }
 
     @Override

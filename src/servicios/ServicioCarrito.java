@@ -23,27 +23,24 @@ public class ServicioCarrito {
      * @return true si se agregó correctamente
      */
     public boolean agregarAlCarrito(int codigoCliente, int codigoProducto, int cantidad) {
-        // Verificar que el producto existe y tiene stock
+        boolean agregado = false;
         Producto producto = productoDAO.obtenerPorCodigo(codigoProducto);
-        if (producto == null) {
-            return false;
+        
+        if (producto != null) {
+            CarritoItem itemExistente = carritoDAO.obtenerItem(codigoCliente, codigoProducto);
+            int cantidadActual = itemExistente != null ? itemExistente.getCantidad() : 0;
+            int cantidadTotal = cantidadActual + cantidad;
+            
+            if (cantidadTotal <= producto.getStock()) {
+                CarritoItem item = new CarritoItem();
+                item.setCodigoCliente(codigoCliente);
+                item.setCodigoProducto(codigoProducto);
+                item.setCantidad(cantidad);
+                agregado = carritoDAO.guardarItem(item);
+            }
         }
         
-        // Verificar stock disponible
-        CarritoItem itemExistente = carritoDAO.obtenerItem(codigoCliente, codigoProducto);
-        int cantidadActual = itemExistente != null ? itemExistente.getCantidad() : 0;
-        int cantidadTotal = cantidadActual + cantidad;
-        
-        if (cantidadTotal > producto.getStock()) {
-            return false; // No hay suficiente stock
-        }
-        
-        CarritoItem item = new CarritoItem();
-        item.setCodigoCliente(codigoCliente);
-        item.setCodigoProducto(codigoProducto);
-        item.setCantidad(cantidad);
-        
-        return carritoDAO.guardarItem(item);
+        return agregado;
     }
     
     /**
@@ -57,31 +54,34 @@ public class ServicioCarrito {
      * Actualiza la cantidad de un item en el carrito
      */
     public boolean actualizarCantidad(int codigoCliente, int codigoProducto, int nuevaCantidad) {
+        boolean actualizado = false;
+        
         if (nuevaCantidad <= 0) {
-            return carritoDAO.eliminarItem(codigoCliente, codigoProducto);
+            actualizado = carritoDAO.eliminarItem(codigoCliente, codigoProducto);
+        } else {
+            Producto producto = productoDAO.obtenerPorCodigo(codigoProducto);
+            if (producto != null && nuevaCantidad <= producto.getStock()) {
+                actualizado = carritoDAO.actualizarCantidad(codigoCliente, codigoProducto, nuevaCantidad);
+            }
         }
         
-        // Verificar stock
-        Producto producto = productoDAO.obtenerPorCodigo(codigoProducto);
-        if (producto == null || nuevaCantidad > producto.getStock()) {
-            return false;
-        }
-        
-        return carritoDAO.actualizarCantidad(codigoCliente, codigoProducto, nuevaCantidad);
+        return actualizado;
     }
     
     /**
      * Elimina un item del carrito
      */
     public boolean eliminarDelCarrito(int codigoCliente, int codigoProducto) {
-        return carritoDAO.eliminarItem(codigoCliente, codigoProducto);
+        boolean eliminado = carritoDAO.eliminarItem(codigoCliente, codigoProducto);
+        return eliminado;
     }
     
     /**
      * Vacía todo el carrito
      */
     public boolean vaciarCarrito(int codigoCliente) {
-        return carritoDAO.vaciarCarrito(codigoCliente);
+        boolean vaciado = carritoDAO.vaciarCarrito(codigoCliente);
+        return vaciado;
     }
     
     /**
@@ -124,10 +124,8 @@ public class ServicioCarrito {
      * Guarda el carrito actual en la BD (antes de cerrar sesión)
      */
     public void guardarCarritoActual(int codigoCliente, List<CarritoItem> items) {
-        // Primero vaciar el carrito guardado
         carritoDAO.vaciarCarrito(codigoCliente);
         
-        // Guardar cada item
         for (CarritoItem item : items) {
             item.setCodigoCliente(codigoCliente);
             carritoDAO.guardarItem(item);

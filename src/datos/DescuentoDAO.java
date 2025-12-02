@@ -15,6 +15,7 @@ public class DescuentoDAO {
      * Busca un descuento por su código
      */
     public Descuento buscarPorCodigo(String codigo) {
+        Descuento descuento = null;
         String sql = """
             SELECT Codigo, Descripcion, TipoDescuento, Valor, FechaInicio, FechaFin,
                    Activo, UsosMaximos, UsosActuales, MontoMinimo
@@ -29,14 +30,14 @@ public class DescuentoDAO {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return mapearDescuento(rs);
+                    descuento = mapearDescuento(rs);
                 }
             }
             
         } catch (SQLException e) {
             System.err.println("Error al buscar descuento: " + e.getMessage());
         }
-        return null;
+        return descuento;
     }
     
     /**
@@ -99,6 +100,7 @@ public class DescuentoDAO {
      * Crea un nuevo descuento
      */
     public boolean crear(Descuento descuento) {
+        boolean resultado = false;
         String sql = """
             INSERT INTO Descuento (Codigo, Descripcion, TipoDescuento, Valor, FechaInicio, 
                                    FechaFin, Activo, UsosMaximos, MontoMinimo)
@@ -135,18 +137,19 @@ public class DescuentoDAO {
             
             stmt.setDouble(9, descuento.getMontoMinimo());
             
-            return stmt.executeUpdate() > 0;
+            resultado = stmt.executeUpdate() > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al crear descuento: " + e.getMessage());
-            return false;
         }
+        return resultado;
     }
     
     /**
      * Actualiza un descuento existente
      */
     public boolean actualizar(Descuento descuento) {
+        boolean resultado = false;
         String sql = """
             UPDATE Descuento SET
                 Descripcion = ?,
@@ -190,66 +193,69 @@ public class DescuentoDAO {
             stmt.setDouble(8, descuento.getMontoMinimo());
             stmt.setString(9, descuento.getCodigo().toUpperCase());
             
-            return stmt.executeUpdate() > 0;
+            resultado = stmt.executeUpdate() > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al actualizar descuento: " + e.getMessage());
-            return false;
         }
+        return resultado;
     }
     
     /**
      * Incrementa el contador de usos de un descuento
      */
     public boolean incrementarUsos(String codigo) {
+        boolean resultado = false;
         String sql = "UPDATE Descuento SET UsosActuales = UsosActuales + 1 WHERE Codigo = ?";
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setString(1, codigo.toUpperCase());
-            return stmt.executeUpdate() > 0;
+            resultado = stmt.executeUpdate() > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al incrementar usos: " + e.getMessage());
-            return false;
         }
+        return resultado;
     }
     
     /**
      * Desactiva un descuento
      */
     public boolean desactivar(String codigo) {
+        boolean resultado = false;
         String sql = "UPDATE Descuento SET Activo = FALSE WHERE Codigo = ?";
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setString(1, codigo.toUpperCase());
-            return stmt.executeUpdate() > 0;
+            resultado = stmt.executeUpdate() > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al desactivar descuento: " + e.getMessage());
-            return false;
         }
+        return resultado;
     }
     
     /**
      * Elimina un descuento
      */
     public boolean eliminar(String codigo) {
+        boolean resultado = false;
         String sql = "DELETE FROM Descuento WHERE Codigo = ?";
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setString(1, codigo.toUpperCase());
-            return stmt.executeUpdate() > 0;
+            resultado = stmt.executeUpdate() > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al eliminar descuento: " + e.getMessage());
-            return false;
         }
+        return resultado;
     }
     
     private Descuento mapearDescuento(ResultSet rs) throws SQLException {

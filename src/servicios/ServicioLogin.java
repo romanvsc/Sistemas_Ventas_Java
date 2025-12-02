@@ -17,7 +17,6 @@ public class ServicioLogin {
      * @return Usuario si las credenciales son válidas, null en caso contrario
      */
     public Usuario validarCredenciales(String usuario, String contrasena) {
-        // Validar que los campos no estén vacíos
         if (usuario == null || usuario.trim().isEmpty()) {
             return null;
         }
@@ -25,10 +24,7 @@ public class ServicioLogin {
             return null;
         }
 
-        // Buscar usuario en la base de datos
-        Usuario usuarioEncontrado = usuarioDAO.obtenerPorCredenciales(usuario.trim(), contrasena);
-        
-        return usuarioEncontrado;
+        return usuarioDAO.obtenerPorCredenciales(usuario.trim(), contrasena);
     }
 
     /**
@@ -40,7 +36,8 @@ public class ServicioLogin {
      * @return true si se registró exitosamente, false en caso contrario
      */
     public boolean registrarUsuario(String nombre, String usuario, String contrasena, double presupuesto) {
-        return registrarUsuario(nombre, usuario, contrasena, presupuesto, null, null);
+        boolean registroExitoso = registrarUsuario(nombre, usuario, contrasena, presupuesto, null, null);
+        return registroExitoso;
     }
     
     /**
@@ -55,38 +52,34 @@ public class ServicioLogin {
      */
     public boolean registrarUsuario(String nombre, String usuario, String contrasena, double presupuesto,
                                     String preguntaSeguridad, String respuestaSeguridad) {
-        // Validar que los campos no estén vacíos
-        if (nombre == null || nombre.trim().isEmpty()) {
-            return false;
-        }
-        if (usuario == null || usuario.trim().isEmpty()) {
-            return false;
-        }
-        if (contrasena == null || contrasena.trim().isEmpty()) {
-            return false;
-        }
-        
-        // Validar presupuesto
-        if (presupuesto < 0) {
-            return false;
+        boolean registroExitoso = false;
+
+        String nombreTrim = nombre != null ? nombre.trim() : null;
+        String usuarioTrim = usuario != null ? usuario.trim() : null;
+        String contrasenaTrim = contrasena != null ? contrasena.trim() : null;
+
+        boolean datosValidos = nombreTrim != null && !nombreTrim.isEmpty()
+                && usuarioTrim != null && !usuarioTrim.isEmpty()
+                && contrasenaTrim != null && !contrasenaTrim.isEmpty()
+                && presupuesto >= 0;
+
+        if (datosValidos) {
+            boolean usuarioDisponible = !usuarioDAO.existeUsuario(usuarioTrim);
+            if (usuarioDisponible) {
+                Usuario nuevoUsuario = new Usuario(nombreTrim, usuarioTrim, contrasena, presupuesto);
+
+                boolean tieneSeguridad = preguntaSeguridad != null && !preguntaSeguridad.trim().isEmpty()
+                        && respuestaSeguridad != null && !respuestaSeguridad.trim().isEmpty();
+                if (tieneSeguridad) {
+                    nuevoUsuario.setPreguntaSeguridad(preguntaSeguridad.trim());
+                    nuevoUsuario.setRespuestaSeguridad(respuestaSeguridad.trim());
+                }
+
+                registroExitoso = usuarioDAO.insertar(nuevoUsuario);
+            }
         }
 
-        // Verificar que el usuario no exista
-        if (usuarioDAO.existeUsuario(usuario.trim())) {
-            return false;
-        }
-
-        // Crear nuevo usuario
-        Usuario nuevoUsuario = new Usuario(nombre.trim(), usuario.trim(), contrasena, presupuesto);
-        
-        // Agregar pregunta de seguridad si se proporcionó
-        if (preguntaSeguridad != null && !preguntaSeguridad.trim().isEmpty() &&
-            respuestaSeguridad != null && !respuestaSeguridad.trim().isEmpty()) {
-            nuevoUsuario.setPreguntaSeguridad(preguntaSeguridad.trim());
-            nuevoUsuario.setRespuestaSeguridad(respuestaSeguridad.trim());
-        }
-        
-        return usuarioDAO.insertar(nuevoUsuario);
+        return registroExitoso;
     }
 
     /**
@@ -95,10 +88,11 @@ public class ServicioLogin {
      * @return true si existe, false en caso contrario
      */
     public boolean existeUsuario(String usuario) {
-        if (usuario == null || usuario.trim().isEmpty()) {
-            return false;
+        boolean existe = false;
+        if (usuario != null && !usuario.trim().isEmpty()) {
+            existe = usuarioDAO.existeUsuario(usuario.trim());
         }
-        return usuarioDAO.existeUsuario(usuario.trim());
+        return existe;
     }
 
     /**
@@ -109,26 +103,18 @@ public class ServicioLogin {
      * @return true si se cambió exitosamente, false en caso contrario
      */
     public boolean cambiarContrasena(int codigoUsuario, String contrasenaActual, String nuevaContrasena) {
-        // Obtener usuario
+        boolean contrasenaCambiada = false;
+
         Usuario usuario = usuarioDAO.obtenerPorCodigo(codigoUsuario);
-        
-        if (usuario == null) {
-            return false;
+        if (usuario != null && usuario.getContrasena().equals(contrasenaActual)) {
+            String nuevaContrasenaTrim = nuevaContrasena != null ? nuevaContrasena.trim() : null;
+            boolean nuevaValida = nuevaContrasenaTrim != null && !nuevaContrasenaTrim.isEmpty();
+            if (nuevaValida) {
+                usuario.setContrasena(nuevaContrasenaTrim);
+                contrasenaCambiada = usuarioDAO.actualizar(usuario);
+            }
         }
 
-        // Verificar contraseña actual
-        if (!usuario.getContrasena().equals(contrasenaActual)) {
-            return false;
-        }
-
-        // Validar nueva contraseña
-        if (nuevaContrasena == null || nuevaContrasena.trim().isEmpty()) {
-            return false;
-        }
-
-        // Actualizar contraseña
-        usuario.setContrasena(nuevaContrasena.trim());
-        
-        return usuarioDAO.actualizar(usuario);
+        return contrasenaCambiada;
     }
 }

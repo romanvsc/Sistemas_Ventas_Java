@@ -58,7 +58,8 @@ public class ServicioDescuento {
      * Registra el uso de un cupón (después de completar la compra)
      */
     public boolean registrarUso(String codigo) {
-        return descuentoDAO.incrementarUsos(codigo);
+        boolean registrado = descuentoDAO.incrementarUsos(codigo);
+        return registrado;
     }
     
     /**
@@ -113,36 +114,36 @@ public class ServicioDescuento {
      * Crea un nuevo cupón (para administradores)
      */
     public boolean crearCupon(Descuento descuento) {
-        if (descuento.getCodigo() == null || descuento.getCodigo().trim().isEmpty()) {
-            return false;
+        boolean creado = false;
+        if (descuento.getCodigo() != null && !descuento.getCodigo().trim().isEmpty()) {
+            if (descuentoDAO.buscarPorCodigo(descuento.getCodigo()) == null) {
+                creado = descuentoDAO.crear(descuento);
+            }
         }
-        
-        // Verificar que no exista
-        if (descuentoDAO.buscarPorCodigo(descuento.getCodigo()) != null) {
-            return false;
-        }
-        
-        return descuentoDAO.crear(descuento);
+        return creado;
     }
     
     /**
      * Actualiza un cupón existente (para administradores)
      */
     public boolean actualizarCupon(Descuento descuento) {
-        return descuentoDAO.actualizar(descuento);
+        boolean actualizado = descuentoDAO.actualizar(descuento);
+        return actualizado;
     }
     
     /**
      * Desactiva un cupón (para administradores)
      */
     public boolean desactivarCupon(String codigo) {
-        return descuentoDAO.desactivar(codigo);
+        boolean desactivado = descuentoDAO.desactivar(codigo);
+        return desactivado;
     }
     
     /**
      * Elimina un cupón (para administradores)
      */
     public boolean eliminarCupon(String codigo) {
-        return descuentoDAO.eliminar(codigo);
+        boolean eliminado = descuentoDAO.eliminar(codigo);
+        return eliminado;
     }
 }

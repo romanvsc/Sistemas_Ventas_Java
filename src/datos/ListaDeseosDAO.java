@@ -18,31 +18,36 @@ public class ListaDeseosDAO {
      * Agrega un producto a la lista de deseos
      */
     public boolean agregar(int codigoUsuario, int codigoProducto, boolean notificar) {
+        boolean resultado = false;
+        
         // Verificar si ya existe
         if (existe(codigoUsuario, codigoProducto)) {
-            return true; // Ya está en la lista
+            resultado = true; // Ya está en la lista
+        } else {
+            String sql = "INSERT INTO listadeseos (CodigoUsuario, CodigoProducto) VALUES (?, ?)";
+            
+            try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                
+                stmt.setInt(1, codigoUsuario);
+                stmt.setInt(2, codigoProducto);
+                
+                resultado = stmt.executeUpdate() > 0;
+                
+            } catch (SQLException e) {
+                System.err.println("Error al agregar a lista de deseos: " + e.getMessage());
+                resultado = false;
+            }
         }
         
-        String sql = "INSERT INTO listadeseos (CodigoUsuario, CodigoProducto) VALUES (?, ?)";
-        
-        try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setInt(1, codigoUsuario);
-            stmt.setInt(2, codigoProducto);
-            
-            return stmt.executeUpdate() > 0;
-            
-        } catch (SQLException e) {
-            System.err.println("Error al agregar a lista de deseos: " + e.getMessage());
-            return false;
-        }
+        return resultado;
     }
     
     /**
      * Verifica si un producto ya está en la lista de deseos
      */
     public boolean existe(int codigoUsuario, int codigoProducto) {
+        boolean resultado = false;
         String sql = "SELECT 1 FROM listadeseos WHERE CodigoUsuario = ? AND CodigoProducto = ?";
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
@@ -52,13 +57,14 @@ public class ListaDeseosDAO {
             stmt.setInt(2, codigoProducto);
             
             try (ResultSet rs = stmt.executeQuery()) {
-                return rs.next();
+                resultado = rs.next();
             }
             
         } catch (SQLException e) {
             System.err.println("Error al verificar lista de deseos: " + e.getMessage());
         }
-        return false;
+        
+        return resultado;
     }
     
     /**
@@ -89,6 +95,7 @@ public class ListaDeseosDAO {
         } catch (SQLException e) {
             System.err.println("Error al listar deseos: " + e.getMessage());
         }
+        
         return items;
     }
     
@@ -96,6 +103,7 @@ public class ListaDeseosDAO {
      * Elimina un producto de la lista de deseos
      */
     public boolean eliminar(int codigoUsuario, int codigoProducto) {
+        boolean resultado = false;
         String sql = "DELETE FROM listadeseos WHERE CodigoUsuario = ? AND CodigoProducto = ?";
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
@@ -104,18 +112,20 @@ public class ListaDeseosDAO {
             stmt.setInt(1, codigoUsuario);
             stmt.setInt(2, codigoProducto);
             
-            return stmt.executeUpdate() > 0;
+            resultado = stmt.executeUpdate() > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al eliminar de lista de deseos: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
     
     /**
      * Vacía toda la lista de deseos de un usuario
      */
     public boolean vaciar(int codigoUsuario) {
+        boolean resultado = false;
         String sql = "DELETE FROM listadeseos WHERE CodigoUsuario = ?";
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
@@ -123,12 +133,13 @@ public class ListaDeseosDAO {
             
             stmt.setInt(1, codigoUsuario);
             stmt.executeUpdate();
-            return true;
+            resultado = true;
             
         } catch (SQLException e) {
             System.err.println("Error al vaciar lista de deseos: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
     
     /**
@@ -136,13 +147,15 @@ public class ListaDeseosDAO {
      */
     public boolean actualizarNotificacion(int codigoUsuario, int codigoProducto, boolean notificar) {
         // La tabla actual no tiene columna Notificar, retornamos true para no romper
-        return true;
+        boolean resultado = true;
+        return resultado;
     }
     
     /**
      * Cuenta items en la lista de deseos
      */
     public int contar(int codigoUsuario) {
+        int resultado = 0;
         String sql = "SELECT COUNT(*) FROM listadeseos WHERE CodigoUsuario = ?";
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
@@ -152,40 +165,42 @@ public class ListaDeseosDAO {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getInt(1);
+                    resultado = rs.getInt(1);
                 }
             }
             
         } catch (SQLException e) {
             System.err.println("Error al contar deseos: " + e.getMessage());
         }
-        return 0;
+        
+        return resultado;
     }
     
     /**
      * Mueve un item de deseos al carrito
      */
     public boolean moverAlCarrito(int codigoUsuario, int codigoProducto) {
+        boolean resultado = false;
         CarritoDAO carritoDAO = new CarritoDAO();
         
         // Obtener info del producto
         ProductoDAO productoDAO = new ProductoDAO();
         var producto = productoDAO.obtenerPorCodigo(codigoProducto);
         
-        if (producto == null) return false;
-        
-        // Agregar al carrito
-        modelo.CarritoItem item = new modelo.CarritoItem();
-        item.setCodigoCliente(codigoUsuario);
-        item.setCodigoProducto(codigoProducto);
-        item.setCantidad(1);
-        
-        if (carritoDAO.guardarItem(item)) {
-            // Eliminar de deseos
-            return eliminar(codigoUsuario, codigoProducto);
+        if (producto != null) {
+            // Agregar al carrito
+            modelo.CarritoItem item = new modelo.CarritoItem();
+            item.setCodigoCliente(codigoUsuario);
+            item.setCodigoProducto(codigoProducto);
+            item.setCantidad(1);
+            
+            if (carritoDAO.guardarItem(item)) {
+                // Eliminar de deseos
+                resultado = eliminar(codigoUsuario, codigoProducto);
+            }
         }
         
-        return false;
+        return resultado;
     }
     
     /**
@@ -216,6 +231,7 @@ public class ListaDeseosDAO {
         } catch (SQLException e) {
             System.err.println("Error al obtener para notificar: " + e.getMessage());
         }
+        
         return items;
     }
     
@@ -237,6 +253,7 @@ public class ListaDeseosDAO {
         }
         
         item.setNotificar(false); // La tabla no tiene Notificar
+        
         return item;
     }
 }

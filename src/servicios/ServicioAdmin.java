@@ -14,7 +14,6 @@ public class ServicioAdmin {
     private ProductoDAO productoDAO;
     private CompraDAO compraDAO;
     
-    // Umbral por defecto para alertas de stock bajo
     private static final int UMBRAL_STOCK_BAJO_DEFAULT = 10;
 
     public ServicioAdmin() {
@@ -23,261 +22,144 @@ public class ServicioAdmin {
         this.compraDAO = new CompraDAO();
     }
 
-    // ==================== GESTIÓN DE USUARIOS ====================
-
-    /**
-     * Lista todos los usuarios del sistema
-     * @return Lista de usuarios
-     */
     public List<Usuario> listarUsuarios() {
         return usuarioDAO.listarTodos();
     }
 
-    /**
-     * Busca un usuario por código
-     * @param codigo Código del usuario
-     * @return Usuario encontrado o null
-     */
     public Usuario buscarUsuario(int codigo) {
         return usuarioDAO.obtenerPorCodigo(codigo);
     }
 
-    /**
-     * Agrega un nuevo usuario
-     * @param nombre Nombre del usuario
-     * @param usuario Nombre de usuario
-     * @param contrasena Contraseña
-     * @return true si se agregó exitosamente, false en caso contrario
-     */
     public boolean agregarUsuario(String nombre, String usuario, String contrasena) {
-        if (nombre == null || nombre.trim().isEmpty()) {
-            return false;
-        }
-        if (usuario == null || usuario.trim().isEmpty()) {
-            return false;
-        }
-        if (contrasena == null || contrasena.trim().isEmpty()) {
-            return false;
+        boolean resultado = false;
+
+        String nombreLimpio = nombre != null ? nombre.trim() : null;
+        String usuarioLimpio = usuario != null ? usuario.trim() : null;
+        String contrasenaLimpia = contrasena != null ? contrasena.trim() : null;
+
+        boolean datosValidos = nombreLimpio != null && !nombreLimpio.isEmpty()
+                && usuarioLimpio != null && !usuarioLimpio.isEmpty()
+                && contrasenaLimpia != null && !contrasenaLimpia.isEmpty();
+
+        if (datosValidos && !usuarioDAO.existeUsuario(usuarioLimpio)) {
+            Usuario nuevoUsuario = new Usuario(nombreLimpio, usuarioLimpio, contrasena, 0.0);
+            resultado = usuarioDAO.insertar(nuevoUsuario);
         }
 
-        // Verificar que el usuario no exista
-        if (usuarioDAO.existeUsuario(usuario.trim())) {
-            return false;
-        }
-
-        Usuario nuevoUsuario = new Usuario(nombre.trim(), usuario.trim(), contrasena, 0.0);
-        return usuarioDAO.insertar(nuevoUsuario);
+        return resultado;
     }
 
-    /**
-     * Actualiza un usuario
-     * @param usuario Usuario con los datos actualizados
-     * @return true si se actualizó exitosamente, false en caso contrario
-     */
     public boolean actualizarUsuario(Usuario usuario) {
-        if (usuario == null) {
-            return false;
+        boolean resultado = false;
+
+        if (usuario != null) {
+            resultado = usuarioDAO.actualizar(usuario);
         }
-        return usuarioDAO.actualizar(usuario);
+
+        return resultado;
     }
 
-    /**
-     * Elimina un usuario
-     * @param codigo Código del usuario
-     * @return true si se eliminó exitosamente, false en caso contrario
-     */
     public boolean eliminarUsuario(int codigo) {
-        return usuarioDAO.eliminar(codigo);
+        boolean resultado = usuarioDAO.eliminar(codigo);
+        return resultado;
     }
 
-    // ==================== GESTIÓN DE PRODUCTOS ====================
-
-    /**
-     * Lista todos los productos
-     * @return Lista de productos
-     */
     public List<Producto> listarProductos() {
         return productoDAO.listarTodos();
     }
 
-    /**
-     * Busca un producto por código
-     * @param codigo Código del producto
-     * @return Producto encontrado o null
-     */
     public Producto buscarProducto(int codigo) {
         return productoDAO.obtenerPorCodigo(codigo);
     }
 
-    /**
-     * Agrega un nuevo producto
-     * @param descripcion Descripción del producto
-     * @param cantidad Cantidad inicial
-     * @param precio Precio
-     * @return true si se agregó exitosamente, false en caso contrario
-     */
     public boolean agregarProducto(String descripcion, int cantidad, double precio) {
-        if (descripcion == null || descripcion.trim().isEmpty()) {
-            return false;
-        }
-        if (cantidad < 0) {
-            return false;
-        }
-        if (precio <= 0) {
-            return false;
+        boolean resultado = false;
+
+        String descripcionLimpia = descripcion != null ? descripcion.trim() : null;
+        boolean datosValidos = descripcionLimpia != null && !descripcionLimpia.isEmpty()
+                && cantidad >= 0
+                && precio > 0;
+
+        if (datosValidos) {
+            Producto nuevoProducto = new Producto(descripcionLimpia, cantidad, precio);
+            resultado = productoDAO.insertar(nuevoProducto);
         }
 
-        Producto nuevoProducto = new Producto(descripcion.trim(), cantidad, precio);
-        return productoDAO.insertar(nuevoProducto);
+        return resultado;
     }
 
-    /**
-     * Actualiza un producto
-     * @param producto Producto con los datos actualizados
-     * @return true si se actualizó exitosamente, false en caso contrario
-     */
     public boolean actualizarProducto(Producto producto) {
-        if (producto == null) {
-            return false;
+        boolean resultado = false;
+
+        if (producto != null) {
+            resultado = productoDAO.actualizar(producto);
         }
-        return productoDAO.actualizar(producto);
+
+        return resultado;
     }
 
-    /**
-     * Elimina un producto
-     * @param codigo Código del producto
-     * @return true si se eliminó exitosamente, false en caso contrario
-     */
     public boolean eliminarProducto(int codigo) {
-        return productoDAO.eliminar(codigo);
+        boolean resultado = productoDAO.eliminar(codigo);
+        return resultado;
     }
 
-    // ==================== GESTIÓN DE COMPRAS ====================
-
-    /**
-     * Lista todas las compras
-     * @return Lista de compras
-     */
     public List<Compra> listarCompras() {
         return compraDAO.listarTodas();
     }
 
-    /**
-     * Busca una compra por número
-     * @param numeroCompra Número de compra
-     * @return Compra encontrada o null
-     */
     public Compra buscarCompra(int numeroCompra) {
         return compraDAO.obtenerPorNumero(numeroCompra);
     }
 
-    /**
-     * Lista compras por cliente
-     * @param codigoCliente Código del cliente
-     * @return Lista de compras del cliente
-     */
     public List<Compra> listarComprasPorCliente(int codigoCliente) {
         return compraDAO.listarPorCliente(codigoCliente);
     }
 
-    /**
-     * Elimina una compra
-     * @param numeroCompra Número de compra
-     * @return true si se eliminó exitosamente, false en caso contrario
-     */
     public boolean eliminarCompra(int numeroCompra) {
-        return compraDAO.eliminar(numeroCompra);
+        boolean resultado = compraDAO.eliminar(numeroCompra);
+        return resultado;
     }
 
-    // ==================== REPORTES Y ESTADÍSTICAS ====================
-
-    /**
-     * Obtiene la cantidad total de usuarios
-     * @return Cantidad de usuarios
-     */
     public int obtenerTotalUsuarios() {
         return usuarioDAO.listarTodos().size();
     }
 
-    /**
-     * Obtiene la cantidad total de productos
-     * @return Cantidad de productos
-     */
     public int obtenerTotalProductos() {
         return productoDAO.listarTodos().size();
     }
 
-    /**
-     * Obtiene la cantidad total de compras
-     * @return Cantidad de compras
-     */
     public int obtenerTotalCompras() {
         return compraDAO.listarTodas().size();
     }
 
-    /**
-     * Obtiene productos con stock bajo (menos de 5 unidades)
-     * @return Lista de productos con stock bajo
-     */
     public List<Producto> obtenerProductosConStockBajo() {
         return productoDAO.listarConStockBajo(UMBRAL_STOCK_BAJO_DEFAULT);
     }
 
-    /**
-     * Obtiene productos con stock bajo según umbral personalizado
-     * @param umbral Umbral de stock bajo
-     * @return Lista de productos con stock bajo
-     */
     public List<Producto> obtenerProductosConStockBajo(int umbral) {
         return productoDAO.listarConStockBajo(umbral);
     }
 
-    /**
-     * Cuenta productos con stock bajo
-     * @return Cantidad de productos con stock bajo
-     */
     public int contarProductosStockBajo() {
         return productoDAO.contarProductosStockBajo(UMBRAL_STOCK_BAJO_DEFAULT);
     }
 
-    /**
-     * Cuenta productos con stock bajo según umbral personalizado
-     * @param umbral Umbral de stock bajo
-     * @return Cantidad de productos con stock bajo
-     */
     public int contarProductosStockBajo(int umbral) {
         return productoDAO.contarProductosStockBajo(umbral);
     }
 
-    /**
-     * Obtiene los productos más vendidos (Top N)
-     * @param limite Cantidad de productos a retornar
-     * @return Lista de estadísticas de productos
-     */
     public List<EstadisticaProducto> obtenerProductosMasVendidos(int limite) {
         return compraDAO.obtenerProductosMasVendidos(limite);
     }
 
-    /**
-     * Obtiene el total de ventas realizadas
-     * @return Monto total de ventas
-     */
     public double obtenerTotalVentas() {
         return compraDAO.obtenerTotalVentas();
     }
 
-    /**
-     * Obtiene la cantidad total de productos vendidos
-     * @return Cantidad total de unidades vendidas
-     */
     public int obtenerCantidadProductosVendidos() {
         return compraDAO.obtenerCantidadProductosVendidos();
     }
 
-    /**
-     * Obtiene el umbral por defecto para stock bajo
-     * @return Umbral de stock bajo
-     */
     public int getUmbralStockBajoDefault() {
         return UMBRAL_STOCK_BAJO_DEFAULT;
     }

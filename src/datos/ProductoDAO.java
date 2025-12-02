@@ -15,6 +15,7 @@ public class ProductoDAO {
     // CREATE - Insertar un nuevo producto
     public boolean insertar(Producto producto) {
         String sql = "INSERT INTO Producto (Descripcion, Cantidad, Precio) VALUES (?, ?, ?)";
+        boolean exito = false;
         
         try (Connection conn = conexionMySQL.obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -31,14 +32,14 @@ public class ProductoDAO {
                         producto.setCodigo(rs.getInt(1));
                     }
                 }
-                return true;
+                exito = true;
             }
-            return false;
             
         } catch (SQLException e) {
             System.err.println("Error al insertar producto: " + e.getMessage());
-            return false;
         }
+        
+        return exito;
     }
 
     // READ - Obtener producto por código
@@ -120,6 +121,7 @@ public class ProductoDAO {
     // UPDATE - Actualizar producto
     public boolean actualizar(Producto producto) {
         String sql = "UPDATE Producto SET Descripcion = ?, Cantidad = ?, Precio = ? WHERE Codigo = ?";
+        boolean exito = false;
         
         try (Connection conn = conexionMySQL.obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -130,34 +132,38 @@ public class ProductoDAO {
             stmt.setInt(4, producto.getCodigo());
             
             int filasAfectadas = stmt.executeUpdate();
-            return filasAfectadas > 0;
+            exito = filasAfectadas > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al actualizar producto: " + e.getMessage());
-            return false;
         }
+        
+        return exito;
     }
 
     // DELETE - Eliminar producto
     public boolean eliminar(int codigo) {
         String sql = "DELETE FROM Producto WHERE Codigo = ?";
+        boolean exito = false;
         
         try (Connection conn = conexionMySQL.obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setInt(1, codigo);
             int filasAfectadas = stmt.executeUpdate();
-            return filasAfectadas > 0;
+            exito = filasAfectadas > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al eliminar producto: " + e.getMessage());
-            return false;
         }
+        
+        return exito;
     }
 
     // Actualizar stock del producto (restar cantidad)
     public boolean actualizarStock(int codigo, int cantidadVendida) {
         String sql = "UPDATE Producto SET Cantidad = Cantidad - ? WHERE Codigo = ? AND Cantidad >= ?";
+        boolean exito = false;
         
         try (Connection conn = conexionMySQL.obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -167,17 +173,19 @@ public class ProductoDAO {
             stmt.setInt(3, cantidadVendida);
             
             int filasAfectadas = stmt.executeUpdate();
-            return filasAfectadas > 0;
+            exito = filasAfectadas > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al actualizar stock: " + e.getMessage());
-            return false;
         }
+        
+        return exito;
     }
 
     // Verificar si hay stock suficiente
     public boolean hayStockSuficiente(int codigo, int cantidadRequerida) {
         String sql = "SELECT Cantidad FROM Producto WHERE Codigo = ?";
+        boolean suficiente = false;
         
         try (Connection conn = conexionMySQL.obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -186,14 +194,14 @@ public class ProductoDAO {
             ResultSet rs = stmt.executeQuery();
             
             if (rs.next()) {
-                return rs.getInt("Cantidad") >= cantidadRequerida;
+                suficiente = rs.getInt("Cantidad") >= cantidadRequerida;
             }
             
         } catch (SQLException e) {
             System.err.println("Error al verificar stock: " + e.getMessage());
         }
         
-        return false;
+        return suficiente;
     }
 
     // Listar productos con stock bajo (menor al umbral especificado)
@@ -227,6 +235,7 @@ public class ProductoDAO {
     // Contar productos con stock bajo
     public int contarProductosStockBajo(int umbral) {
         String sql = "SELECT COUNT(*) as Total FROM Producto WHERE Cantidad <= ?";
+        int total = 0;
         
         try (Connection conn = conexionMySQL.obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -235,7 +244,7 @@ public class ProductoDAO {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getInt("Total");
+                    total = rs.getInt("Total");
                 }
             }
             
@@ -243,7 +252,7 @@ public class ProductoDAO {
             System.err.println("Error al contar productos con stock bajo: " + e.getMessage());
         }
         
-        return 0;
+        return total;
     }
 
     // ==================== MÉTODOS DE BÚSQUEDA Y FILTROS ====================
@@ -415,20 +424,22 @@ public class ProductoDAO {
      */
     public double[] obtenerRangoPrecios() {
         String sql = "SELECT MIN(Precio) as PrecioMin, MAX(Precio) as PrecioMax FROM Producto";
+        double[] rango = new double[] { 0, 0 };
         
         try (Connection conn = conexionMySQL.obtenerConexion();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             
             if (rs.next()) {
-                return new double[] { rs.getDouble("PrecioMin"), rs.getDouble("PrecioMax") };
+                rango[0] = rs.getDouble("PrecioMin");
+                rango[1] = rs.getDouble("PrecioMax");
             }
             
         } catch (SQLException e) {
             System.err.println("Error al obtener rango de precios: " + e.getMessage());
         }
         
-        return new double[] { 0, 0 };
+        return rango;
     }
     
     /**

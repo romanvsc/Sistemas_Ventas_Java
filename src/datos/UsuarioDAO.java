@@ -14,41 +14,44 @@ public class UsuarioDAO {
 
     // CREATE - Insertar un nuevo usuario
     public boolean insertar(Usuario usuario) {
+        boolean resultado = false;
+        
         // Verificar si tiene pregunta de seguridad configurada
         if (usuario.getPreguntaSeguridad() != null && !usuario.getPreguntaSeguridad().isEmpty()) {
-            return insertarConSeguridad(usuario);
-        }
-        
-        String sql = "INSERT INTO Cliente (Nombre, Usuario, Contrasena, presupuesto) VALUES (?, ?, ?, ?)";
-        
-        try (Connection conn = conexionMySQL.obtenerConexion();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            resultado = insertarConSeguridad(usuario);
+        } else {
+            String sql = "INSERT INTO Cliente (Nombre, Usuario, Contrasena, presupuesto) VALUES (?, ?, ?, ?)";
             
-            stmt.setString(1, usuario.getNombre());
-            stmt.setString(2, usuario.getUsuario());
-            stmt.setString(3, usuario.getContrasena());
-            stmt.setDouble(4, usuario.getPresupuesto());
-            
-            int filasAfectadas = stmt.executeUpdate();
-            
-            if (filasAfectadas > 0) {
-                try (ResultSet rs = stmt.getGeneratedKeys()) {
-                    if (rs.next()) {
-                        usuario.setCodigo(rs.getInt(1));
+            try (Connection conn = conexionMySQL.obtenerConexion();
+                 PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                
+                stmt.setString(1, usuario.getNombre());
+                stmt.setString(2, usuario.getUsuario());
+                stmt.setString(3, usuario.getContrasena());
+                stmt.setDouble(4, usuario.getPresupuesto());
+                
+                int filasAfectadas = stmt.executeUpdate();
+                
+                if (filasAfectadas > 0) {
+                    try (ResultSet rs = stmt.getGeneratedKeys()) {
+                        if (rs.next()) {
+                            usuario.setCodigo(rs.getInt(1));
+                        }
                     }
+                    resultado = true;
                 }
-                return true;
+                
+            } catch (SQLException e) {
+                System.err.println("Error al insertar usuario: " + e.getMessage());
             }
-            return false;
-            
-        } catch (SQLException e) {
-            System.err.println("Error al insertar usuario: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
     
     // CREATE - Insertar usuario con pregunta de seguridad
     private boolean insertarConSeguridad(Usuario usuario) {
+        boolean resultado = false;
         String sql = "INSERT INTO Cliente (Nombre, Usuario, Contrasena, presupuesto, PreguntaSeguridad, RespuestaSeguridad) VALUES (?, ?, ?, ?, ?, ?)";
         
         try (Connection conn = conexionMySQL.obtenerConexion();
@@ -69,14 +72,14 @@ public class UsuarioDAO {
                         usuario.setCodigo(rs.getInt(1));
                     }
                 }
-                return true;
+                resultado = true;
             }
-            return false;
             
         } catch (SQLException e) {
             System.err.println("Error al insertar usuario con seguridad: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
 
     // READ - Obtener usuario por código
@@ -162,6 +165,7 @@ public class UsuarioDAO {
 
     // UPDATE - Actualizar usuario
     public boolean actualizar(Usuario usuario) {
+        boolean resultado = false;
         String sql = "UPDATE Cliente SET Nombre = ?, Usuario = ?, Contrasena = ?, presupuesto = ? WHERE Codigo = ?";
         
         try (Connection conn = conexionMySQL.obtenerConexion();
@@ -174,16 +178,18 @@ public class UsuarioDAO {
             stmt.setInt(5, usuario.getCodigo());
             
             int filasAfectadas = stmt.executeUpdate();
-            return filasAfectadas > 0;
+            resultado = filasAfectadas > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al actualizar usuario: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
     
     // UPDATE - Actualizar solo presupuesto
     public boolean actualizarPresupuesto(int codigoUsuario, double nuevoPresupuesto) {
+        boolean resultado = false;
         String sql = "UPDATE Cliente SET presupuesto = ? WHERE Codigo = ?";
         
         try (Connection conn = conexionMySQL.obtenerConexion();
@@ -193,16 +199,18 @@ public class UsuarioDAO {
             stmt.setInt(2, codigoUsuario);
             
             int filasAfectadas = stmt.executeUpdate();
-            return filasAfectadas > 0;
+            resultado = filasAfectadas > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al actualizar presupuesto: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
 
     // DELETE - Eliminar usuario
     public boolean eliminar(int codigo) {
+        boolean resultado = false;
         String sql = "DELETE FROM Cliente WHERE Codigo = ?";
         
         try (Connection conn = conexionMySQL.obtenerConexion();
@@ -210,16 +218,18 @@ public class UsuarioDAO {
             
             stmt.setInt(1, codigo);
             int filasAfectadas = stmt.executeUpdate();
-            return filasAfectadas > 0;
+            resultado = filasAfectadas > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al eliminar usuario: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
 
     // Verificar si existe un usuario con ese nombre de usuario
     public boolean existeUsuario(String usuario) {
+        boolean existe = false;
         String sql = "SELECT COUNT(*) FROM Cliente WHERE Usuario = ?";
         
         try (Connection conn = conexionMySQL.obtenerConexion();
@@ -229,14 +239,14 @@ public class UsuarioDAO {
             ResultSet rs = stmt.executeQuery();
             
             if (rs.next()) {
-                return rs.getInt(1) > 0;
+                existe = rs.getInt(1) > 0;
             }
             
         } catch (SQLException e) {
             System.err.println("Error al verificar existencia de usuario: " + e.getMessage());
         }
         
-        return false;
+        return existe;
     }
 
     // ==================== MÉTODOS PARA GESTIÓN AVANZADA DE USUARIOS ====================
@@ -293,6 +303,7 @@ public class UsuarioDAO {
      * Actualiza la contraseña de un usuario
      */
     public boolean actualizarContrasena(int codigoUsuario, String nuevaContrasena) {
+        boolean resultado = false;
         String sql = "UPDATE Cliente SET Contrasena = ? WHERE Codigo = ?";
         
         try (Connection conn = conexionMySQL.obtenerConexion();
@@ -301,18 +312,20 @@ public class UsuarioDAO {
             stmt.setString(1, nuevaContrasena);
             stmt.setInt(2, codigoUsuario);
             
-            return stmt.executeUpdate() > 0;
+            resultado = stmt.executeUpdate() > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al actualizar contraseña: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
     
     /**
      * Actualiza el perfil del usuario (datos extendidos)
      */
     public boolean actualizarPerfil(Usuario usuario) {
+        boolean resultado = false;
         String sql = """
             UPDATE Cliente SET 
                 Nombre = ?, 
@@ -335,18 +348,20 @@ public class UsuarioDAO {
             stmt.setString(6, usuario.getRespuestaSeguridad());
             stmt.setInt(7, usuario.getCodigo());
             
-            return stmt.executeUpdate() > 0;
+            resultado = stmt.executeUpdate() > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al actualizar perfil: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
     
     /**
      * Configura la pregunta y respuesta de seguridad
      */
     public boolean configurarRecuperacion(int codigoUsuario, String pregunta, String respuesta) {
+        boolean resultado = false;
         String sql = "UPDATE Cliente SET PreguntaSeguridad = ?, RespuestaSeguridad = ? WHERE Codigo = ?";
         
         try (Connection conn = conexionMySQL.obtenerConexion();
@@ -356,18 +371,20 @@ public class UsuarioDAO {
             stmt.setString(2, respuesta);
             stmt.setInt(3, codigoUsuario);
             
-            return stmt.executeUpdate() > 0;
+            resultado = stmt.executeUpdate() > 0;
             
         } catch (SQLException e) {
             System.err.println("Error al configurar recuperación: " + e.getMessage());
-            return false;
         }
+        
+        return resultado;
     }
     
     /**
      * Verifica la respuesta de seguridad
      */
     public boolean verificarRespuestaSeguridad(String nombreUsuario, String respuesta) {
+        boolean verificado = false;
         String sql = "SELECT RespuestaSeguridad FROM Cliente WHERE Usuario = ?";
         
         try (Connection conn = conexionMySQL.obtenerConexion();
@@ -379,7 +396,7 @@ public class UsuarioDAO {
             if (rs.next()) {
                 String respuestaGuardada = rs.getString("RespuestaSeguridad");
                 if (respuestaGuardada != null && respuesta != null) {
-                    return respuestaGuardada.equalsIgnoreCase(respuesta.trim());
+                    verificado = respuestaGuardada.equalsIgnoreCase(respuesta.trim());
                 }
             }
             
@@ -387,13 +404,14 @@ public class UsuarioDAO {
             System.err.println("Error al verificar respuesta: " + e.getMessage());
         }
         
-        return false;
+        return verificado;
     }
     
     /**
      * Obtiene la pregunta de seguridad de un usuario
      */
     public String obtenerPreguntaSeguridad(String nombreUsuario) {
+        String pregunta = null;
         String sql = "SELECT PreguntaSeguridad FROM Cliente WHERE Usuario = ?";
         
         try (Connection conn = conexionMySQL.obtenerConexion();
@@ -403,14 +421,14 @@ public class UsuarioDAO {
             ResultSet rs = stmt.executeQuery();
             
             if (rs.next()) {
-                return rs.getString("PreguntaSeguridad");
+                pregunta = rs.getString("PreguntaSeguridad");
             }
             
         } catch (SQLException e) {
             System.err.println("Error al obtener pregunta: " + e.getMessage());
         }
         
-        return null;
+        return pregunta;
     }
     
     /**
@@ -444,6 +462,7 @@ public class UsuarioDAO {
      * Cuenta el total de usuarios
      */
     public int contarUsuarios() {
+        int cantidad = 0;
         String sql = "SELECT COUNT(*) FROM Cliente";
         
         try (Connection conn = conexionMySQL.obtenerConexion();
@@ -451,14 +470,14 @@ public class UsuarioDAO {
              ResultSet rs = stmt.executeQuery(sql)) {
             
             if (rs.next()) {
-                return rs.getInt(1);
+                cantidad = rs.getInt(1);
             }
             
         } catch (SQLException e) {
             System.err.println("Error al contar usuarios: " + e.getMessage());
         }
         
-        return 0;
+        return cantidad;
     }
     
     /**
