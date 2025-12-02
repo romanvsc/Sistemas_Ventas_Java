@@ -329,3 +329,4 @@ Este proyecto es desarrollado con fines educativos para la materia Programación
 **Versión**: 1.0.0  
 **Última Actualización**: Noviembre 2025  
 **Estado**: Producción
+**Codigos de Descuento**: TECH20, BIENVENIDO10, DESCUENTO5000

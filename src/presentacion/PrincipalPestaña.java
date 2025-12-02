@@ -175,12 +175,12 @@ public class PrincipalPestaña extends JFrame {
                 
                 if (!conStockDisponible.isEmpty()) {
                     hayNotificaciones = true;
-                    mensaje.append("🎉 ¡Buenas noticias! Productos de tu Lista de Deseos con stock disponible:\n\n");
+                    mensaje.append("¡Buenas noticias! Productos de tu Lista de Deseos con stock disponible:\n\n");
                     
                     int mostrar = Math.min(conStockDisponible.size(), 5);
                     for (int i = 0; i < mostrar; i++) {
                         ItemDeseo item = conStockDisponible.get(i);
-                        mensaje.append("  ✓ ").append(item.getDescripcionProducto())
+                        mensaje.append("  - ").append(item.getDescripcionProducto())
                                .append(" - $").append(String.format("%.2f", item.getPrecioProducto()))
                                .append(" (").append(item.getStockProducto()).append(" disponibles)\n");
                     }
@@ -197,7 +197,7 @@ public class PrincipalPestaña extends JFrame {
             if (!carritoGuardado.isEmpty()) {
                 hayNotificaciones = true;
                 double totalCarrito = servicioCarritoPersistente.calcularSubtotal(usuarioActual.getCodigo());
-                mensaje.append("🛒 Tienes ").append(carritoGuardado.size())
+                mensaje.append("Tienes ").append(carritoGuardado.size())
                        .append(" producto(s) guardado(s) en tu carrito (Total: $")
                        .append(String.format("%.2f", totalCarrito)).append(")\n\n");
             }
@@ -211,12 +211,12 @@ public class PrincipalPestaña extends JFrame {
                 hayNotificaciones = true;
                 List<Producto> productosStockBajo = servicioAdmin.obtenerProductosConStockBajo();
                 
-                mensaje.append("⚠️ ALERTA DE INVENTARIO - ").append(cantidadStockBajo).append(" producto(s) con stock bajo:\n\n");
+                mensaje.append("ALERTA DE INVENTARIO - ").append(cantidadStockBajo).append(" producto(s) con stock bajo:\n\n");
                 
                 int mostrar = Math.min(productosStockBajo.size(), 5);
                 for (int i = 0; i < mostrar; i++) {
                     Producto p = productosStockBajo.get(i);
-                    String estado = p.getCantidad() == 0 ? "❌ SIN STOCK" : "⚠️ " + p.getCantidad() + " unid.";
+                    String estado = p.getCantidad() == 0 ? "SIN STOCK" : p.getCantidad() + " unid.";
                     mensaje.append("  • ").append(p.getDescripcion()).append(" - ").append(estado).append("\n");
                 }
                 
@@ -360,7 +360,7 @@ public class PrincipalPestaña extends JFrame {
         ));
         
         // Campo de búsqueda
-        JLabel lblBuscar = new JLabel("🔍");
+        JLabel lblBuscar = new JLabel("Buscar:");
         panelBusqueda.add(lblBuscar);
         
         txtBusqueda = new JTextField(15);
@@ -425,7 +425,7 @@ public class PrincipalPestaña extends JFrame {
         panelContenido.add(panelSuperior, BorderLayout.NORTH);
 
         // Tabla de productos
-        String[] columnas = {"Código", "Producto", "Categoría", "Stock", "Precio", "♥"};
+        String[] columnas = {"Código", "Producto", "Categoría", "Stock", "Precio", "Deseo"};
         modeloTablaProductos = new DefaultTableModel(columnas, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -456,7 +456,7 @@ public class PrincipalPestaña extends JFrame {
         
         // Solo mostrar botón de deseos si no es invitado
         if (!usuarioActual.getUsuario().equalsIgnoreCase("invitado")) {
-            JButton btnDeseos = crearBotonSecundario("♥ Lista de Deseos");
+            JButton btnDeseos = crearBotonSecundario("Lista de Deseos");
             btnDeseos.addActionListener(e -> agregarAListaDeseos());
             panelBotones.add(btnDeseos);
         }
@@ -523,7 +523,7 @@ public class PrincipalPestaña extends JFrame {
                 p.getCategoria() != null ? p.getCategoria() : "-",
                 p.getCantidad(),
                 String.format("$%.2f", p.getPrecio()),
-                enDeseos ? "❤️" : "🤍"
+                enDeseos ? "Si" : "No"
             });
         }
     }
@@ -550,10 +550,10 @@ public class PrincipalPestaña extends JFrame {
         boolean agregado = servicioListaDeseos.alternar(usuarioActual.getCodigo(), codigoProducto);
         
         if (agregado) {
-            modeloTablaProductos.setValueAt("❤️", filaSeleccionada, 5);
+            modeloTablaProductos.setValueAt("Si", filaSeleccionada, 5);
             mostrarMensaje(this, "Producto agregado a la lista de deseos", "Éxito", JOptionPane.INFORMATION_MESSAGE);
         } else {
-            modeloTablaProductos.setValueAt("🤍", filaSeleccionada, 5);
+            modeloTablaProductos.setValueAt("No", filaSeleccionada, 5);
             mostrarMensaje(this, "Producto eliminado de la lista de deseos", "Info", JOptionPane.INFORMATION_MESSAGE);
         }
         
@@ -618,7 +618,7 @@ public class PrincipalPestaña extends JFrame {
             new EmptyBorder(8, 12, 8, 12)
         ));
         
-        JLabel lblCupon = new JLabel("🏷️ Código de descuento:");
+        JLabel lblCupon = new JLabel("Codigo de descuento:");
         lblCupon.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         panelDescuento.add(lblCupon);
         
@@ -771,7 +771,7 @@ public class PrincipalPestaña extends JFrame {
         JPanel panelTitulo = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         panelTitulo.setBackground(COLOR_CARD);
         
-        JLabel lblIcono = new JLabel("❤️");
+        JLabel lblIcono = new JLabel("");
         lblIcono.setFont(new Font("Segoe UI", Font.PLAIN, 22));
         panelTitulo.add(lblIcono);
         
@@ -807,15 +807,15 @@ public class PrincipalPestaña extends JFrame {
         JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         panelBotones.setBackground(COLOR_CARD);
         
-        JButton btnActualizar = crearBotonSecundario("🔄 Actualizar");
+        JButton btnActualizar = crearBotonSecundario("Actualizar");
         btnActualizar.addActionListener(e -> cargarListaDeseos());
         panelBotones.add(btnActualizar);
         
-        JButton btnEliminar = crearBotonSecundario("🗑️ Eliminar");
+        JButton btnEliminar = crearBotonSecundario("Eliminar");
         btnEliminar.addActionListener(e -> eliminarDeListaDeseos());
         panelBotones.add(btnEliminar);
         
-        JButton btnMoverCarrito = crearBotonExito("🛒 Mover al Carrito");
+        JButton btnMoverCarrito = crearBotonExito("Mover al Carrito");
         btnMoverCarrito.addActionListener(e -> moverDeDeseoACarrito());
         panelBotones.add(btnMoverCarrito);
 
@@ -919,7 +919,7 @@ public class PrincipalPestaña extends JFrame {
         JPanel panelTitulo = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         panelTitulo.setBackground(COLOR_CARD);
         
-        JLabel lblIcono = new JLabel("👤");
+        JLabel lblIcono = new JLabel("");
         lblIcono.setFont(new Font("Segoe UI", Font.PLAIN, 28));
         panelTitulo.add(lblIcono);
         
@@ -963,7 +963,7 @@ public class PrincipalPestaña extends JFrame {
         panelFormulario.add(Box.createVerticalStrut(15));
         
         // Sección de seguridad
-        JLabel lblSeguridad = new JLabel("🔐 Seguridad y Recuperación");
+        JLabel lblSeguridad = new JLabel("Seguridad y Recuperacion");
         lblSeguridad.setFont(new Font("Segoe UI", Font.BOLD, 16));
         lblSeguridad.setForeground(TECH_BLUE);
         lblSeguridad.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -1015,7 +1015,7 @@ public class PrincipalPestaña extends JFrame {
         panelFormulario.add(separador2);
         panelFormulario.add(Box.createVerticalStrut(15));
         
-        JLabel lblCambioPass = new JLabel("🔑 Cambiar Contraseña (opcional)");
+        JLabel lblCambioPass = new JLabel("Cambiar Contraseña (opcional)");
         lblCambioPass.setFont(new Font("Segoe UI", Font.BOLD, 16));
         lblCambioPass.setForeground(TECH_BLUE);
         lblCambioPass.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -1036,7 +1036,7 @@ public class PrincipalPestaña extends JFrame {
         JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 10));
         panelBotones.setBackground(COLOR_CARD);
         
-        JButton btnGuardar = crearBotonExito("💾 Guardar Cambios");
+        JButton btnGuardar = crearBotonExito("Guardar Cambios");
         btnGuardar.addActionListener(e -> {
             // Validar campos obligatorios
             if (txtNombre.getText().trim().isEmpty()) {
@@ -1116,7 +1116,7 @@ public class PrincipalPestaña extends JFrame {
         panelLateral.setPreferredSize(new Dimension(250, 0));
         
         // Avatar
-        JLabel lblAvatar = new JLabel("👤");
+        JLabel lblAvatar = new JLabel("");
         lblAvatar.setFont(new Font("Segoe UI", Font.PLAIN, 64));
         lblAvatar.setAlignmentX(Component.CENTER_ALIGNMENT);
         panelLateral.add(lblAvatar);
@@ -1144,7 +1144,7 @@ public class PrincipalPestaña extends JFrame {
         panelInfo.setBorder(new EmptyBorder(15, 15, 15, 15));
         panelInfo.setAlignmentX(Component.CENTER_ALIGNMENT);
         
-        JLabel lblPresupuesto = new JLabel("💰 Presupuesto");
+        JLabel lblPresupuesto = new JLabel("Presupuesto");
         lblPresupuesto.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblPresupuesto.setForeground(new Color(100, 100, 100));
         panelInfo.add(lblPresupuesto);
@@ -1157,14 +1157,14 @@ public class PrincipalPestaña extends JFrame {
         panelInfo.add(Box.createVerticalStrut(10));
         
         // Estado de seguridad
-        JLabel lblEstadoSeg = new JLabel("🔐 Recuperación");
+        JLabel lblEstadoSeg = new JLabel("Recuperación");
         lblEstadoSeg.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblEstadoSeg.setForeground(new Color(100, 100, 100));
         panelInfo.add(lblEstadoSeg);
         
         boolean tieneRecuperacion = usuarioActual.getPreguntaSeguridad() != null 
             && !usuarioActual.getPreguntaSeguridad().isEmpty();
-        JLabel lblEstadoSegValor = new JLabel(tieneRecuperacion ? "✅ Configurada" : "⚠️ Sin configurar");
+        JLabel lblEstadoSegValor = new JLabel(tieneRecuperacion ? "Configurada" : "Sin configurar");
         lblEstadoSegValor.setFont(new Font("Segoe UI", Font.BOLD, 14));
         lblEstadoSegValor.setForeground(tieneRecuperacion ? TECH_GREEN : TECH_ORANGE);
         panelInfo.add(lblEstadoSegValor);
@@ -1351,7 +1351,7 @@ public class PrincipalPestaña extends JFrame {
         // Título
         JPanel panelTituloEst = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         panelTituloEst.setBackground(COLOR_CARD);
-        JLabel lblIconoEst = new JLabel("📊");
+        JLabel lblIconoEst = new JLabel("");
         lblIconoEst.setFont(new Font("Segoe UI", Font.PLAIN, 20));
         panelTituloEst.add(lblIconoEst);
         JLabel lblTituloEst = new JLabel("Resumen de Ventas");
@@ -1365,11 +1365,11 @@ public class PrincipalPestaña extends JFrame {
         panelCards.setBackground(COLOR_CARD);
         panelCards.setBorder(new EmptyBorder(10, 0, 5, 0));
 
-        lblTotalVentas = crearCardEstadistica("💰", "Total Ventas", "$0.00", TECH_GREEN);
+        lblTotalVentas = crearCardEstadistica("", "Total Ventas", "$0.00", TECH_GREEN);
         panelCards.add(lblTotalVentas.getParent());
-        lblCantidadVendida = crearCardEstadistica("📦", "Unidades Vendidas", "0", TECH_BLUE);
+        lblCantidadVendida = crearCardEstadistica("", "Unidades Vendidas", "0", TECH_BLUE);
         panelCards.add(lblCantidadVendida.getParent());
-        lblProductosStockBajo = crearCardEstadistica("⚠️", "Productos Stock Bajo", "0", TECH_ORANGE);
+        lblProductosStockBajo = crearCardEstadistica("", "Productos Stock Bajo", "0", TECH_ORANGE);
         panelCards.add(lblProductosStockBajo.getParent());
 
         panelEstadisticas.add(panelCards, BorderLayout.CENTER);
@@ -1388,7 +1388,7 @@ public class PrincipalPestaña extends JFrame {
 
         JPanel panelTituloVend = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         panelTituloVend.setBackground(COLOR_CARD);
-        JLabel lblIconoVend = new JLabel("🏆");
+        JLabel lblIconoVend = new JLabel("");
         lblIconoVend.setFont(new Font("Segoe UI", Font.PLAIN, 18));
         panelTituloVend.add(lblIconoVend);
         JLabel lblTituloVend = new JLabel("Top 10 Productos Más Vendidos");
@@ -1426,7 +1426,7 @@ public class PrincipalPestaña extends JFrame {
 
         JPanel panelTituloStock = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         panelTituloStock.setBackground(COLOR_CARD);
-        JLabel lblIconoStock = new JLabel("⚠️");
+        JLabel lblIconoStock = new JLabel("");
         lblIconoStock.setFont(new Font("Segoe UI", Font.PLAIN, 18));
         panelTituloStock.add(lblIconoStock);
         JLabel lblTituloStock = new JLabel("Productos con Stock Bajo");
@@ -1465,7 +1465,7 @@ public class PrincipalPestaña extends JFrame {
         // ==================== PANEL INFERIOR: Botón Actualizar ====================
         JPanel panelBoton = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 5));
         panelBoton.setBackground(COLOR_FONDO);
-        JButton btnActualizarReportes = crearBotonSecundario("🔄 Actualizar Reportes");
+        JButton btnActualizarReportes = crearBotonSecundario("Actualizar Reportes");
         btnActualizarReportes.addActionListener(e -> cargarDatosReportes());
         panelBoton.add(btnActualizarReportes);
 
@@ -1589,13 +1589,13 @@ public class PrincipalPestaña extends JFrame {
             List<Producto> productosStockBajo = servicioAdmin.obtenerProductosConStockBajo();
             
             StringBuilder mensaje = new StringBuilder();
-            mensaje.append("⚠️ ALERTA DE INVENTARIO\n\n");
+            mensaje.append("ALERTA DE INVENTARIO\n\n");
             mensaje.append("Hay ").append(cantidadStockBajo).append(" producto(s) con stock bajo:\n\n");
             
             int mostrar = Math.min(productosStockBajo.size(), 5);
             for (int i = 0; i < mostrar; i++) {
                 Producto p = productosStockBajo.get(i);
-                String estado = p.getCantidad() == 0 ? "❌ SIN STOCK" : "⚠️ " + p.getCantidad() + " unid.";
+                String estado = p.getCantidad() == 0 ? "SIN STOCK" : p.getCantidad() + " unid.";
                 mensaje.append("• ").append(p.getDescripcion()).append(" - ").append(estado).append("\n");
             }
             
@@ -2017,7 +2017,7 @@ public class PrincipalPestaña extends JFrame {
         
         if (!disponibles.isEmpty()) {
             StringBuilder mensaje = new StringBuilder();
-            mensaje.append("🎉 ¡Buenas noticias!\n\n");
+            mensaje.append("¡Buenas noticias!\n\n");
             mensaje.append("Algunos productos de tu lista de deseos ya están disponibles:\n\n");
             
             int mostrar = Math.min(disponibles.size(), 5);
@@ -2064,7 +2064,7 @@ public class PrincipalPestaña extends JFrame {
                 p.getCategoria() != null ? p.getCategoria() : "-",
                 p.getCantidad(),
                 String.format("$%.2f", p.getPrecio()),
-                enDeseos ? "❤️" : "🤍"
+                enDeseos ? "Si" : "No"
             });
         }
     }

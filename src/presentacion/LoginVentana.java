@@ -354,7 +354,7 @@ public class LoginVentana extends JFrame {
         ));
         
         // Logo pequeño
-        JLabel lblLogo = new JLabel("⚡");
+        JLabel lblLogo = new JLabel("");
         lblLogo.setFont(new Font("Segoe UI", Font.PLAIN, 32));
         lblLogo.setForeground(TECH_CYAN);
         lblLogo.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -450,7 +450,7 @@ public class LoginVentana extends JFrame {
         ));
         
         // Icono
-        JLabel lblIcono = new JLabel("🔐");
+        JLabel lblIcono = new JLabel("");
         lblIcono.setFont(new Font("Segoe UI", Font.PLAIN, 32));
         lblIcono.setAlignmentX(Component.CENTER_ALIGNMENT);
         panelCentral.add(lblIcono);

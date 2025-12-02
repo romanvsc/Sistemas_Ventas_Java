@@ -23,7 +23,7 @@ public class CarritoDAO {
                                       existente.getCantidad() + item.getCantidad());
         }
         
-        String sql = "INSERT INTO CarritoGuardado (CodigoCliente, CodigoProducto, Cantidad) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO CarritoGuardado (CodigoUsuario, CodigoProducto, Cantidad) VALUES (?, ?, ?)";
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -43,19 +43,19 @@ public class CarritoDAO {
     /**
      * Obtiene un item específico del carrito
      */
-    public CarritoItem obtenerItem(int codigoCliente, int codigoProducto) {
+    public CarritoItem obtenerItem(int CodigoUsuario, int codigoProducto) {
         String sql = """
-            SELECT c.Id, c.CodigoCliente, c.CodigoProducto, c.Cantidad, c.FechaAgregado,
+            SELECT c.CodigoUsuario, c.CodigoProducto, c.Cantidad, c.FechaAgregado,
                    p.Descripcion, p.Precio
             FROM CarritoGuardado c
             JOIN Producto p ON c.CodigoProducto = p.Codigo
-            WHERE c.CodigoCliente = ? AND c.CodigoProducto = ?
+            WHERE c.CodigoUsuario = ? AND c.CodigoProducto = ?
         """;
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
-            stmt.setInt(1, codigoCliente);
+            stmt.setInt(1, CodigoUsuario);
             stmt.setInt(2, codigoProducto);
             
             try (ResultSet rs = stmt.executeQuery()) {
@@ -73,21 +73,21 @@ public class CarritoDAO {
     /**
      * Lista todos los items del carrito de un usuario
      */
-    public List<CarritoItem> listarPorCliente(int codigoCliente) {
+    public List<CarritoItem> listarPorCliente(int CodigoUsuario) {
         List<CarritoItem> items = new ArrayList<>();
         String sql = """
-            SELECT c.Id, c.CodigoCliente, c.CodigoProducto, c.Cantidad, c.FechaAgregado,
+            SELECT c.CodigoUsuario, c.CodigoProducto, c.Cantidad, c.FechaAgregado,
                    p.Descripcion, p.Precio
             FROM CarritoGuardado c
             JOIN Producto p ON c.CodigoProducto = p.Codigo
-            WHERE c.CodigoCliente = ?
+            WHERE c.CodigoUsuario = ?
             ORDER BY c.FechaAgregado DESC
         """;
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
-            stmt.setInt(1, codigoCliente);
+            stmt.setInt(1, CodigoUsuario);
             
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -104,18 +104,18 @@ public class CarritoDAO {
     /**
      * Actualiza la cantidad de un item
      */
-    public boolean actualizarCantidad(int codigoCliente, int codigoProducto, int nuevaCantidad) {
+    public boolean actualizarCantidad(int CodigoUsuario, int codigoProducto, int nuevaCantidad) {
         if (nuevaCantidad <= 0) {
-            return eliminarItem(codigoCliente, codigoProducto);
+            return eliminarItem(CodigoUsuario, codigoProducto);
         }
         
-        String sql = "UPDATE CarritoGuardado SET Cantidad = ? WHERE CodigoCliente = ? AND CodigoProducto = ?";
+        String sql = "UPDATE CarritoGuardado SET Cantidad = ? WHERE CodigoUsuario = ? AND CodigoProducto = ?";
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setInt(1, nuevaCantidad);
-            stmt.setInt(2, codigoCliente);
+            stmt.setInt(2, CodigoUsuario);
             stmt.setInt(3, codigoProducto);
             
             return stmt.executeUpdate() > 0;
@@ -129,13 +129,13 @@ public class CarritoDAO {
     /**
      * Elimina un item del carrito
      */
-    public boolean eliminarItem(int codigoCliente, int codigoProducto) {
-        String sql = "DELETE FROM CarritoGuardado WHERE CodigoCliente = ? AND CodigoProducto = ?";
+    public boolean eliminarItem(int CodigoUsuario, int codigoProducto) {
+        String sql = "DELETE FROM CarritoGuardado WHERE CodigoUsuario = ? AND CodigoProducto = ?";
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
-            stmt.setInt(1, codigoCliente);
+            stmt.setInt(1, CodigoUsuario);
             stmt.setInt(2, codigoProducto);
             
             return stmt.executeUpdate() > 0;
@@ -149,13 +149,13 @@ public class CarritoDAO {
     /**
      * Vacía todo el carrito de un usuario
      */
-    public boolean vaciarCarrito(int codigoCliente) {
-        String sql = "DELETE FROM CarritoGuardado WHERE CodigoCliente = ?";
+    public boolean vaciarCarrito(int CodigoUsuario) {
+        String sql = "DELETE FROM CarritoGuardado WHERE CodigoUsuario = ?";
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
-            stmt.setInt(1, codigoCliente);
+            stmt.setInt(1, CodigoUsuario);
             stmt.executeUpdate();
             return true;
             
@@ -168,13 +168,13 @@ public class CarritoDAO {
     /**
      * Cuenta items en el carrito
      */
-    public int contarItems(int codigoCliente) {
-        String sql = "SELECT COUNT(*) FROM CarritoGuardado WHERE CodigoCliente = ?";
+    public int contarItems(int CodigoUsuario) {
+        String sql = "SELECT COUNT(*) FROM CarritoGuardado WHERE CodigoUsuario = ?";
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
-            stmt.setInt(1, codigoCliente);
+            stmt.setInt(1, CodigoUsuario);
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -191,18 +191,18 @@ public class CarritoDAO {
     /**
      * Calcula el total del carrito
      */
-    public double calcularTotal(int codigoCliente) {
+    public double calcularTotal(int CodigoUsuario) {
         String sql = """
             SELECT SUM(c.Cantidad * p.Precio) as Total
             FROM CarritoGuardado c
             JOIN Producto p ON c.CodigoProducto = p.Codigo
-            WHERE c.CodigoCliente = ?
+            WHERE c.CodigoUsuario = ?
         """;
         
         try (Connection conn = ConexionMySQL.obtenerInstancia().obtenerConexion();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
-            stmt.setInt(1, codigoCliente);
+            stmt.setInt(1, CodigoUsuario);
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -218,13 +218,21 @@ public class CarritoDAO {
     
     private CarritoItem mapearCarritoItem(ResultSet rs) throws SQLException {
         CarritoItem item = new CarritoItem();
-        item.setId(rs.getInt("Id"));
-        item.setCodigoCliente(rs.getInt("CodigoCliente"));
+        item.setId(0); // La tabla no tiene Id
+        item.setCodigoCliente(rs.getInt("CodigoUsuario"));
         item.setCodigoProducto(rs.getInt("CodigoProducto"));
         item.setDescripcionProducto(rs.getString("Descripcion"));
         item.setPrecioProducto(rs.getDouble("Precio"));
         item.setCantidad(rs.getInt("Cantidad"));
-        item.setFechaAgregado(rs.getTimestamp("FechaAgregado").toLocalDateTime());
+        
+        // Manejar FechaAgregado que puede ser null
+        Timestamp ts = rs.getTimestamp("FechaAgregado");
+        if (ts != null) {
+            item.setFechaAgregado(ts.toLocalDateTime());
+        } else {
+            item.setFechaAgregado(java.time.LocalDateTime.now());
+        }
+        
         return item;
     }
 }
