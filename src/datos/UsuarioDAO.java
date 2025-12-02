@@ -14,6 +14,11 @@ public class UsuarioDAO {
 
     // CREATE - Insertar un nuevo usuario
     public boolean insertar(Usuario usuario) {
+        // Verificar si tiene pregunta de seguridad configurada
+        if (usuario.getPreguntaSeguridad() != null && !usuario.getPreguntaSeguridad().isEmpty()) {
+            return insertarConSeguridad(usuario);
+        }
+        
         String sql = "INSERT INTO Cliente (Nombre, Usuario, Contrasena, presupuesto) VALUES (?, ?, ?, ?)";
         
         try (Connection conn = conexionMySQL.obtenerConexion();
@@ -38,6 +43,38 @@ public class UsuarioDAO {
             
         } catch (SQLException e) {
             System.err.println("Error al insertar usuario: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    // CREATE - Insertar usuario con pregunta de seguridad
+    private boolean insertarConSeguridad(Usuario usuario) {
+        String sql = "INSERT INTO Cliente (Nombre, Usuario, Contrasena, presupuesto, PreguntaSeguridad, RespuestaSeguridad) VALUES (?, ?, ?, ?, ?, ?)";
+        
+        try (Connection conn = conexionMySQL.obtenerConexion();
+             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            
+            stmt.setString(1, usuario.getNombre());
+            stmt.setString(2, usuario.getUsuario());
+            stmt.setString(3, usuario.getContrasena());
+            stmt.setDouble(4, usuario.getPresupuesto());
+            stmt.setString(5, usuario.getPreguntaSeguridad());
+            stmt.setString(6, usuario.getRespuestaSeguridad());
+            
+            int filasAfectadas = stmt.executeUpdate();
+            
+            if (filasAfectadas > 0) {
+                try (ResultSet rs = stmt.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        usuario.setCodigo(rs.getInt(1));
+                    }
+                }
+                return true;
+            }
+            return false;
+            
+        } catch (SQLException e) {
+            System.err.println("Error al insertar usuario con seguridad: " + e.getMessage());
             return false;
         }
     }

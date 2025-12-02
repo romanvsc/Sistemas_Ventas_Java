@@ -40,6 +40,21 @@ public class ServicioLogin {
      * @return true si se registró exitosamente, false en caso contrario
      */
     public boolean registrarUsuario(String nombre, String usuario, String contrasena, double presupuesto) {
+        return registrarUsuario(nombre, usuario, contrasena, presupuesto, null, null);
+    }
+    
+    /**
+     * Registra un nuevo usuario en el sistema con pregunta de seguridad
+     * @param nombre Nombre completo
+     * @param usuario Nombre de usuario
+     * @param contrasena Contraseña
+     * @param presupuesto Presupuesto inicial
+     * @param preguntaSeguridad Pregunta de seguridad para recuperación
+     * @param respuestaSeguridad Respuesta a la pregunta de seguridad
+     * @return true si se registró exitosamente, false en caso contrario
+     */
+    public boolean registrarUsuario(String nombre, String usuario, String contrasena, double presupuesto,
+                                    String preguntaSeguridad, String respuestaSeguridad) {
         // Validar que los campos no estén vacíos
         if (nombre == null || nombre.trim().isEmpty()) {
             return false;
@@ -63,6 +78,13 @@ public class ServicioLogin {
 
         // Crear nuevo usuario
         Usuario nuevoUsuario = new Usuario(nombre.trim(), usuario.trim(), contrasena, presupuesto);
+        
+        // Agregar pregunta de seguridad si se proporcionó
+        if (preguntaSeguridad != null && !preguntaSeguridad.trim().isEmpty() &&
+            respuestaSeguridad != null && !respuestaSeguridad.trim().isEmpty()) {
+            nuevoUsuario.setPreguntaSeguridad(preguntaSeguridad.trim());
+            nuevoUsuario.setRespuestaSeguridad(respuestaSeguridad.trim());
+        }
         
         return usuarioDAO.insertar(nuevoUsuario);
     }

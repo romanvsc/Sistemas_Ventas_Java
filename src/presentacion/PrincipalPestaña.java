@@ -1965,8 +1965,8 @@ public class PrincipalPestaña extends JFrame {
     private void configurarVentana() {
         setTitle("Sistema de Ventas - " + usuarioActual.getNombre());
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1000, 700);
-        setLocationRelativeTo(null);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setMinimumSize(new java.awt.Dimension(1000, 700));
         
         // Menú estilizado
         JMenuBar menuBar = new JMenuBar();

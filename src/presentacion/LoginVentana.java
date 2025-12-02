@@ -376,7 +376,40 @@ public class LoginVentana extends JFrame {
         JPasswordField txtConfirmar = (JPasswordField) agregarCampo(panelCentral, "Confirmar contraseña", true);
         JTextField txtPresupuesto = agregarCampo(panelCentral, "Presupuesto inicial");
         
-        panelCentral.add(Box.createVerticalStrut(25));
+        panelCentral.add(Box.createVerticalStrut(15));
+        
+        // Sección de pregunta de seguridad
+        JLabel lblSeccion = new JLabel("Pregunta de seguridad (para recuperar contraseña)");
+        lblSeccion.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblSeccion.setForeground(TECH_DARK);
+        lblSeccion.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panelCentral.add(lblSeccion);
+        
+        panelCentral.add(Box.createVerticalStrut(8));
+        
+        // ComboBox para seleccionar pregunta de seguridad
+        String[] preguntas = {
+            "-- Seleccione una pregunta --",
+            "¿Cuál es el nombre de tu primera mascota?",
+            "¿Cuál es tu película favorita?",
+            "¿En qué ciudad naciste?",
+            "¿Cuál es el nombre de tu mejor amigo de la infancia?",
+            "¿Cuál es tu comida favorita?",
+            "¿Cuál fue el nombre de tu primera escuela?",
+            "¿Cuál es tu libro favorito?",
+            "¿Cuál es el segundo nombre de tu madre?"
+        };
+        JComboBox<String> cmbPregunta = new JComboBox<>(preguntas);
+        cmbPregunta.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cmbPregunta.setMaximumSize(new Dimension(320, 35));
+        cmbPregunta.setBackground(Color.WHITE);
+        panelCentral.add(cmbPregunta);
+        
+        panelCentral.add(Box.createVerticalStrut(5));
+        
+        JTextField txtRespuesta = agregarCampo(panelCentral, "Respuesta de seguridad");
+        
+        panelCentral.add(Box.createVerticalStrut(20));
         
         JButton btnGuardar = crearBotonPrimario("Registrar");
         btnGuardar.addActionListener(e -> {
@@ -385,6 +418,8 @@ public class LoginVentana extends JFrame {
             String contrasena = new String(txtContrasenaReg.getPassword());
             String confirmar = new String(txtConfirmar.getPassword());
             String presupuestoStr = txtPresupuesto.getText().trim();
+            int preguntaIndex = cmbPregunta.getSelectedIndex();
+            String respuesta = txtRespuesta.getText().trim();
 
             if (nombre.isEmpty() || usuario.isEmpty() || contrasena.isEmpty() || presupuestoStr.isEmpty()) {
                 mostrarMensaje(dialogoRegistro, "Todos los campos son obligatorios", "Error", JOptionPane.ERROR_MESSAGE);
@@ -394,6 +429,18 @@ public class LoginVentana extends JFrame {
             if (!contrasena.equals(confirmar)) {
                 mostrarMensaje(dialogoRegistro, "Las contraseñas no coinciden", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
+            }
+            
+            // Validar pregunta de seguridad
+            String preguntaSeguridad = null;
+            String respuestaSeguridad = null;
+            if (preguntaIndex > 0) {
+                if (respuesta.isEmpty()) {
+                    mostrarMensaje(dialogoRegistro, "Debe ingresar la respuesta de seguridad", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                preguntaSeguridad = preguntas[preguntaIndex];
+                respuestaSeguridad = respuesta;
             }
             
             double presupuesto;
@@ -408,7 +455,7 @@ public class LoginVentana extends JFrame {
                 return;
             }
 
-            if (servicioLogin.registrarUsuario(nombre, usuario, contrasena, presupuesto)) {
+            if (servicioLogin.registrarUsuario(nombre, usuario, contrasena, presupuesto, preguntaSeguridad, respuestaSeguridad)) {
                 mostrarMensaje(dialogoRegistro, "Usuario registrado exitosamente", "Éxito", JOptionPane.INFORMATION_MESSAGE);
                 dialogoRegistro.dispose();
             } else {
