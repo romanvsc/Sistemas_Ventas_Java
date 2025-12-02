@@ -132,6 +132,7 @@ public class PrincipalPestaña extends JFrame {
             tabbedPane.addTab("Carrito", crearPanelCarrito());
             tabbedPane.addTab("Lista de Deseos", crearPanelListaDeseos());
             tabbedPane.addTab("Mis Compras", crearPanelMisCompras());
+            tabbedPane.addTab("Mi Perfil", crearPanelMiPerfil());
         }
         
         // Solo mostrar administración si es usuario "admin"
@@ -897,6 +898,311 @@ public class PrincipalPestaña extends JFrame {
         } else {
             mostrarMensaje(this, "No se pudo agregar al carrito. Verifique el stock.", "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+    
+    // ==================== PANEL MI PERFIL ====================
+    
+    private JPanel crearPanelMiPerfil() {
+        JPanel panel = new JPanel(new BorderLayout(15, 15));
+        panel.setBackground(COLOR_FONDO);
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        
+        // Panel de contenido con fondo blanco
+        JPanel panelContenido = new JPanel(new BorderLayout(10, 15));
+        panelContenido.setBackground(COLOR_CARD);
+        panelContenido.setBorder(BorderFactory.createCompoundBorder(
+            new ShadowBorder(),
+            new EmptyBorder(25, 30, 25, 30)
+        ));
+        
+        // Título con icono
+        JPanel panelTitulo = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        panelTitulo.setBackground(COLOR_CARD);
+        
+        JLabel lblIcono = new JLabel("👤");
+        lblIcono.setFont(new Font("Segoe UI", Font.PLAIN, 28));
+        panelTitulo.add(lblIcono);
+        
+        JLabel lblTitulo = new JLabel("Mi Perfil");
+        lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        lblTitulo.setForeground(TECH_DARK);
+        panelTitulo.add(lblTitulo);
+        
+        panelContenido.add(panelTitulo, BorderLayout.NORTH);
+        
+        // Panel central con formulario
+        JPanel panelFormulario = new JPanel();
+        panelFormulario.setLayout(new BoxLayout(panelFormulario, BoxLayout.Y_AXIS));
+        panelFormulario.setBackground(COLOR_CARD);
+        panelFormulario.setBorder(new EmptyBorder(20, 50, 20, 50));
+        
+        // Cargar datos actuales del usuario
+        Usuario usuarioActualizado = new UsuarioDAO().obtenerPorCodigo(usuarioActual.getCodigo());
+        if (usuarioActualizado != null) {
+            usuarioActual = usuarioActualizado;
+        }
+        
+        // Campos del formulario
+        JTextField txtNombre = crearCampoPerfil(panelFormulario, "Nombre completo", usuarioActual.getNombre());
+        JTextField txtUsuario = crearCampoPerfil(panelFormulario, "Usuario", usuarioActual.getUsuario());
+        txtUsuario.setEditable(false);
+        txtUsuario.setBackground(new Color(240, 240, 240));
+        
+        JTextField txtEmail = crearCampoPerfil(panelFormulario, "Email", 
+            usuarioActual.getEmail() != null ? usuarioActual.getEmail() : "");
+        JTextField txtTelefono = crearCampoPerfil(panelFormulario, "Teléfono", 
+            usuarioActual.getTelefono() != null ? usuarioActual.getTelefono() : "");
+        JTextField txtDireccion = crearCampoPerfil(panelFormulario, "Dirección", 
+            usuarioActual.getDireccion() != null ? usuarioActual.getDireccion() : "");
+        
+        // Separador
+        panelFormulario.add(Box.createVerticalStrut(15));
+        JSeparator separador = new JSeparator();
+        separador.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        panelFormulario.add(separador);
+        panelFormulario.add(Box.createVerticalStrut(15));
+        
+        // Sección de seguridad
+        JLabel lblSeguridad = new JLabel("🔐 Seguridad y Recuperación");
+        lblSeguridad.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        lblSeguridad.setForeground(TECH_BLUE);
+        lblSeguridad.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panelFormulario.add(lblSeguridad);
+        panelFormulario.add(Box.createVerticalStrut(15));
+        
+        // Pregunta de seguridad
+        String[] preguntas = {
+            "Seleccione una pregunta de seguridad...",
+            "¿Cuál es el nombre de tu primera mascota?",
+            "¿En qué ciudad naciste?",
+            "¿Cuál es tu película favorita?",
+            "¿Cuál es el nombre de tu mejor amigo de la infancia?",
+            "¿Cuál fue tu primer auto?",
+            "¿Cuál es el nombre de tu escuela primaria?"
+        };
+        
+        JLabel lblPregunta = new JLabel("Pregunta de seguridad");
+        lblPregunta.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblPregunta.setForeground(COLOR_TEXTO);
+        lblPregunta.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panelFormulario.add(lblPregunta);
+        panelFormulario.add(Box.createVerticalStrut(5));
+        
+        JComboBox<String> cmbPregunta = new JComboBox<>(preguntas);
+        cmbPregunta.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        cmbPregunta.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        cmbPregunta.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
+        // Seleccionar pregunta actual si existe
+        if (usuarioActual.getPreguntaSeguridad() != null && !usuarioActual.getPreguntaSeguridad().isEmpty()) {
+            for (int i = 0; i < preguntas.length; i++) {
+                if (preguntas[i].equals(usuarioActual.getPreguntaSeguridad())) {
+                    cmbPregunta.setSelectedIndex(i);
+                    break;
+                }
+            }
+        }
+        panelFormulario.add(cmbPregunta);
+        panelFormulario.add(Box.createVerticalStrut(15));
+        
+        JTextField txtRespuesta = crearCampoPerfil(panelFormulario, "Respuesta de seguridad", 
+            usuarioActual.getRespuestaSeguridad() != null ? usuarioActual.getRespuestaSeguridad() : "");
+        
+        // Separador para cambio de contraseña
+        panelFormulario.add(Box.createVerticalStrut(10));
+        JSeparator separador2 = new JSeparator();
+        separador2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        panelFormulario.add(separador2);
+        panelFormulario.add(Box.createVerticalStrut(15));
+        
+        JLabel lblCambioPass = new JLabel("🔑 Cambiar Contraseña (opcional)");
+        lblCambioPass.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        lblCambioPass.setForeground(TECH_BLUE);
+        lblCambioPass.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panelFormulario.add(lblCambioPass);
+        panelFormulario.add(Box.createVerticalStrut(15));
+        
+        JPasswordField txtContrasenaActual = (JPasswordField) crearCampoPerfil(panelFormulario, "Contraseña actual", "", true);
+        JPasswordField txtNuevaContrasena = (JPasswordField) crearCampoPerfil(panelFormulario, "Nueva contraseña", "", true);
+        JPasswordField txtConfirmarContrasena = (JPasswordField) crearCampoPerfil(panelFormulario, "Confirmar nueva contraseña", "", true);
+        
+        // Scroll para el formulario
+        JScrollPane scrollFormulario = new JScrollPane(panelFormulario);
+        scrollFormulario.setBorder(null);
+        scrollFormulario.getVerticalScrollBar().setUnitIncrement(16);
+        panelContenido.add(scrollFormulario, BorderLayout.CENTER);
+        
+        // Panel de botones
+        JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 10));
+        panelBotones.setBackground(COLOR_CARD);
+        
+        JButton btnGuardar = crearBotonExito("💾 Guardar Cambios");
+        btnGuardar.addActionListener(e -> {
+            // Validar campos obligatorios
+            if (txtNombre.getText().trim().isEmpty()) {
+                mostrarMensaje(this, "El nombre es obligatorio", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            // Validar cambio de contraseña si se intenta
+            String passActual = new String(txtContrasenaActual.getPassword());
+            String nuevaPass = new String(txtNuevaContrasena.getPassword());
+            String confirmarPass = new String(txtConfirmarContrasena.getPassword());
+            
+            if (!nuevaPass.isEmpty() || !confirmarPass.isEmpty()) {
+                if (passActual.isEmpty()) {
+                    mostrarMensaje(this, "Debe ingresar su contraseña actual para cambiarla", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                if (!passActual.equals(usuarioActual.getContrasena())) {
+                    mostrarMensaje(this, "La contraseña actual es incorrecta", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                if (!nuevaPass.equals(confirmarPass)) {
+                    mostrarMensaje(this, "Las contraseñas nuevas no coinciden", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                if (nuevaPass.length() < 4) {
+                    mostrarMensaje(this, "La nueva contraseña debe tener al menos 4 caracteres", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            }
+            
+            // Actualizar datos del usuario
+            usuarioActual.setNombre(txtNombre.getText().trim());
+            usuarioActual.setEmail(txtEmail.getText().trim());
+            usuarioActual.setTelefono(txtTelefono.getText().trim());
+            usuarioActual.setDireccion(txtDireccion.getText().trim());
+            
+            // Pregunta y respuesta de seguridad
+            if (cmbPregunta.getSelectedIndex() > 0) {
+                usuarioActual.setPreguntaSeguridad((String) cmbPregunta.getSelectedItem());
+                usuarioActual.setRespuestaSeguridad(txtRespuesta.getText().trim());
+            }
+            
+            UsuarioDAO usuarioDAO = new UsuarioDAO();
+            boolean exito = usuarioDAO.actualizarPerfil(usuarioActual);
+            
+            // Cambiar contraseña si corresponde
+            if (!nuevaPass.isEmpty() && exito) {
+                exito = usuarioDAO.actualizarContrasena(usuarioActual.getCodigo(), nuevaPass);
+                if (exito) {
+                    usuarioActual.setContrasena(nuevaPass);
+                    txtContrasenaActual.setText("");
+                    txtNuevaContrasena.setText("");
+                    txtConfirmarContrasena.setText("");
+                }
+            }
+            
+            if (exito) {
+                mostrarMensaje(this, "¡Perfil actualizado correctamente!", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                mostrarMensaje(this, "Error al actualizar el perfil", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        panelBotones.add(btnGuardar);
+        
+        panelContenido.add(panelBotones, BorderLayout.SOUTH);
+        panel.add(panelContenido, BorderLayout.CENTER);
+        
+        // Panel lateral con información
+        JPanel panelLateral = new JPanel();
+        panelLateral.setLayout(new BoxLayout(panelLateral, BoxLayout.Y_AXIS));
+        panelLateral.setBackground(COLOR_CARD);
+        panelLateral.setBorder(BorderFactory.createCompoundBorder(
+            new ShadowBorder(),
+            new EmptyBorder(20, 20, 20, 20)
+        ));
+        panelLateral.setPreferredSize(new Dimension(250, 0));
+        
+        // Avatar
+        JLabel lblAvatar = new JLabel("👤");
+        lblAvatar.setFont(new Font("Segoe UI", Font.PLAIN, 64));
+        lblAvatar.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panelLateral.add(lblAvatar);
+        
+        panelLateral.add(Box.createVerticalStrut(10));
+        
+        JLabel lblNombreUsuario = new JLabel(usuarioActual.getNombre());
+        lblNombreUsuario.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        lblNombreUsuario.setForeground(TECH_DARK);
+        lblNombreUsuario.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panelLateral.add(lblNombreUsuario);
+        
+        JLabel lblTipoUsuario = new JLabel("@" + usuarioActual.getUsuario());
+        lblTipoUsuario.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        lblTipoUsuario.setForeground(new Color(100, 100, 100));
+        lblTipoUsuario.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panelLateral.add(lblTipoUsuario);
+        
+        panelLateral.add(Box.createVerticalStrut(20));
+        
+        // Información de cuenta
+        JPanel panelInfo = new JPanel();
+        panelInfo.setLayout(new BoxLayout(panelInfo, BoxLayout.Y_AXIS));
+        panelInfo.setBackground(new Color(248, 250, 252));
+        panelInfo.setBorder(new EmptyBorder(15, 15, 15, 15));
+        panelInfo.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        JLabel lblPresupuesto = new JLabel("💰 Presupuesto");
+        lblPresupuesto.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblPresupuesto.setForeground(new Color(100, 100, 100));
+        panelInfo.add(lblPresupuesto);
+        
+        JLabel lblPresupuestoValor = new JLabel(String.format("$%.2f", usuarioActual.getPresupuesto()));
+        lblPresupuestoValor.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        lblPresupuestoValor.setForeground(TECH_GREEN);
+        panelInfo.add(lblPresupuestoValor);
+        
+        panelInfo.add(Box.createVerticalStrut(10));
+        
+        // Estado de seguridad
+        JLabel lblEstadoSeg = new JLabel("🔐 Recuperación");
+        lblEstadoSeg.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblEstadoSeg.setForeground(new Color(100, 100, 100));
+        panelInfo.add(lblEstadoSeg);
+        
+        boolean tieneRecuperacion = usuarioActual.getPreguntaSeguridad() != null 
+            && !usuarioActual.getPreguntaSeguridad().isEmpty();
+        JLabel lblEstadoSegValor = new JLabel(tieneRecuperacion ? "✅ Configurada" : "⚠️ Sin configurar");
+        lblEstadoSegValor.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        lblEstadoSegValor.setForeground(tieneRecuperacion ? TECH_GREEN : TECH_ORANGE);
+        panelInfo.add(lblEstadoSegValor);
+        
+        panelLateral.add(panelInfo);
+        
+        panel.add(panelLateral, BorderLayout.EAST);
+        
+        return panel;
+    }
+    
+    private JTextField crearCampoPerfil(JPanel panel, String etiqueta, String valor) {
+        return crearCampoPerfil(panel, etiqueta, valor, false);
+    }
+    
+    private JTextField crearCampoPerfil(JPanel panel, String etiqueta, String valor, boolean esPassword) {
+        JLabel lbl = new JLabel(etiqueta);
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lbl.setForeground(COLOR_TEXTO);
+        lbl.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(lbl);
+        
+        panel.add(Box.createVerticalStrut(5));
+        
+        JTextField campo = esPassword ? new JPasswordField(25) : new JTextField(25);
+        campo.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        campo.setText(valor);
+        campo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        campo.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(203, 213, 225), 1),
+            new EmptyBorder(8, 12, 8, 12)
+        ));
+        campo.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(campo);
+        
+        panel.add(Box.createVerticalStrut(12));
+        
+        return campo;
     }
 
     private JPanel crearPanelMisCompras() {

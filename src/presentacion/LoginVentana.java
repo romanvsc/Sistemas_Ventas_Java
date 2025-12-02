@@ -2,6 +2,7 @@ package presentacion;
 
 import servicios.ServicioLogin;
 import modelo.Usuario;
+import datos.UsuarioDAO;
 import javax.swing.*;
 import javax.swing.border.*;
 import java.awt.*;
@@ -9,6 +10,7 @@ import java.awt.event.*;
 
 public class LoginVentana extends JFrame {
     private ServicioLogin servicioLogin;
+    private UsuarioDAO usuarioDAO;
     
     // Paleta de colores - Tema Electrónica Moderna (TechStore)
     private static final Color TECH_DARK = new Color(15, 23, 42);        // Fondo oscuro principal
@@ -27,6 +29,7 @@ public class LoginVentana extends JFrame {
 
     public LoginVentana() {
         this.servicioLogin = new ServicioLogin();
+        this.usuarioDAO = new UsuarioDAO();
         inicializarComponentes();
         configurarVentana();
     }
@@ -120,6 +123,13 @@ public class LoginVentana extends JFrame {
         JButton btnInvitado = crearBotonTerciario("Ingresar como invitado");
         btnInvitado.addActionListener(e -> ingresarComoInvitado());
         panelCentral.add(btnInvitado);
+        
+        panelCentral.add(Box.createVerticalStrut(8));
+        
+        // Botón Recuperar Contraseña
+        JButton btnRecuperar = crearBotonTerciario("¿Olvidaste tu contraseña?");
+        btnRecuperar.addActionListener(e -> mostrarDialogoRecuperacion());
+        panelCentral.add(btnRecuperar);
         
         // Enter en campos de texto
         txtUsuario.addActionListener(e -> txtContrasena.requestFocus());
@@ -418,6 +428,227 @@ public class LoginVentana extends JFrame {
         dialogoRegistro.pack();
         dialogoRegistro.setLocationRelativeTo(this);
         dialogoRegistro.setVisible(true);
+    }
+    
+    /**
+     * Muestra el diálogo de recuperación de contraseña
+     */
+    private void mostrarDialogoRecuperacion() {
+        JDialog dialogoRecuperacion = new JDialog(this, "Recuperar Contraseña", true);
+        dialogoRecuperacion.setLayout(new BorderLayout());
+        
+        JPanel panelFondo = new JPanel(new GridBagLayout());
+        panelFondo.setBackground(COLOR_FONDO);
+        panelFondo.setBorder(new EmptyBorder(20, 20, 20, 20));
+        
+        JPanel panelCentral = new JPanel();
+        panelCentral.setLayout(new BoxLayout(panelCentral, BoxLayout.Y_AXIS));
+        panelCentral.setBackground(COLOR_BLANCO);
+        panelCentral.setBorder(BorderFactory.createCompoundBorder(
+            new ShadowBorder(),
+            new EmptyBorder(35, 45, 35, 45)
+        ));
+        
+        // Icono
+        JLabel lblIcono = new JLabel("🔐");
+        lblIcono.setFont(new Font("Segoe UI", Font.PLAIN, 32));
+        lblIcono.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panelCentral.add(lblIcono);
+        
+        panelCentral.add(Box.createVerticalStrut(10));
+        
+        JLabel lblTitulo = new JLabel("Recuperar Contraseña");
+        lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        lblTitulo.setForeground(TECH_DARK);
+        lblTitulo.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panelCentral.add(lblTitulo);
+        
+        panelCentral.add(Box.createVerticalStrut(10));
+        
+        JLabel lblInstruccion = new JLabel("<html><center>Ingresa tu nombre de usuario para<br>ver tu pregunta de seguridad</center></html>");
+        lblInstruccion.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblInstruccion.setForeground(new Color(100, 100, 100));
+        lblInstruccion.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panelCentral.add(lblInstruccion);
+        
+        panelCentral.add(Box.createVerticalStrut(25));
+        
+        // Campo usuario
+        JTextField txtUsuarioRec = agregarCampo(panelCentral, "Nombre de usuario");
+        
+        // Panel para pregunta de seguridad (oculto inicialmente)
+        JPanel panelPregunta = new JPanel();
+        panelPregunta.setLayout(new BoxLayout(panelPregunta, BoxLayout.Y_AXIS));
+        panelPregunta.setBackground(COLOR_BLANCO);
+        panelPregunta.setVisible(false);
+        
+        JLabel lblPregunta = new JLabel("");
+        lblPregunta.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblPregunta.setForeground(TECH_BLUE);
+        lblPregunta.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panelPregunta.add(lblPregunta);
+        
+        panelPregunta.add(Box.createVerticalStrut(8));
+        
+        JTextField txtRespuesta = new JTextField(20);
+        txtRespuesta.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        txtRespuesta.setMaximumSize(new Dimension(320, 40));
+        txtRespuesta.setBorder(BorderFactory.createCompoundBorder(
+            new RoundedBorder(TECH_BLUE_LIGHT, 1, 8),
+            new EmptyBorder(8, 15, 8, 15)
+        ));
+        txtRespuesta.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panelPregunta.add(txtRespuesta);
+        
+        panelPregunta.add(Box.createVerticalStrut(18));
+        
+        // Panel para nueva contraseña (oculto inicialmente)
+        JPanel panelNuevaContrasena = new JPanel();
+        panelNuevaContrasena.setLayout(new BoxLayout(panelNuevaContrasena, BoxLayout.Y_AXIS));
+        panelNuevaContrasena.setBackground(COLOR_BLANCO);
+        panelNuevaContrasena.setVisible(false);
+        
+        JLabel lblNuevaPass = new JLabel("Nueva contraseña");
+        lblNuevaPass.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblNuevaPass.setForeground(COLOR_TEXTO);
+        lblNuevaPass.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panelNuevaContrasena.add(lblNuevaPass);
+        
+        panelNuevaContrasena.add(Box.createVerticalStrut(8));
+        
+        JPasswordField txtNuevaContrasena = new JPasswordField(20);
+        txtNuevaContrasena.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        txtNuevaContrasena.setMaximumSize(new Dimension(320, 40));
+        txtNuevaContrasena.setBorder(BorderFactory.createCompoundBorder(
+            new RoundedBorder(TECH_BLUE_LIGHT, 1, 8),
+            new EmptyBorder(8, 15, 8, 15)
+        ));
+        txtNuevaContrasena.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panelNuevaContrasena.add(txtNuevaContrasena);
+        
+        panelNuevaContrasena.add(Box.createVerticalStrut(15));
+        
+        JLabel lblConfirmarPass = new JLabel("Confirmar contraseña");
+        lblConfirmarPass.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblConfirmarPass.setForeground(COLOR_TEXTO);
+        lblConfirmarPass.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panelNuevaContrasena.add(lblConfirmarPass);
+        
+        panelNuevaContrasena.add(Box.createVerticalStrut(8));
+        
+        JPasswordField txtConfirmarContrasena = new JPasswordField(20);
+        txtConfirmarContrasena.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        txtConfirmarContrasena.setMaximumSize(new Dimension(320, 40));
+        txtConfirmarContrasena.setBorder(BorderFactory.createCompoundBorder(
+            new RoundedBorder(TECH_BLUE_LIGHT, 1, 8),
+            new EmptyBorder(8, 15, 8, 15)
+        ));
+        txtConfirmarContrasena.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panelNuevaContrasena.add(txtConfirmarContrasena);
+        
+        panelCentral.add(panelPregunta);
+        panelCentral.add(panelNuevaContrasena);
+        
+        panelCentral.add(Box.createVerticalStrut(20));
+        
+        // Estado del proceso
+        final int[] paso = {1}; // 1: buscar usuario, 2: responder pregunta, 3: nueva contraseña
+        final Usuario[] usuarioRecuperar = {null};
+        
+        JButton btnAccion = crearBotonPrimario("Buscar Usuario");
+        btnAccion.addActionListener(e -> {
+            switch (paso[0]) {
+                case 1: // Buscar usuario
+                    String nombreUsuario = txtUsuarioRec.getText().trim();
+                    if (nombreUsuario.isEmpty()) {
+                        mostrarMensaje(dialogoRecuperacion, "Ingrese su nombre de usuario", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                    
+                    usuarioRecuperar[0] = usuarioDAO.obtenerPorNombreUsuario(nombreUsuario);
+                    if (usuarioRecuperar[0] == null) {
+                        mostrarMensaje(dialogoRecuperacion, "Usuario no encontrado", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                    
+                    String pregunta = usuarioDAO.obtenerPreguntaSeguridad(nombreUsuario);
+                    if (pregunta == null || pregunta.isEmpty()) {
+                        mostrarMensaje(dialogoRecuperacion, 
+                            "Este usuario no tiene configurada una pregunta de seguridad.\nContacte al administrador.", 
+                            "Sin recuperación", JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+                    
+                    // Mostrar pregunta
+                    lblPregunta.setText("Pregunta: " + pregunta);
+                    panelPregunta.setVisible(true);
+                    txtUsuarioRec.setEditable(false);
+                    btnAccion.setText("Verificar Respuesta");
+                    paso[0] = 2;
+                    dialogoRecuperacion.pack();
+                    break;
+                    
+                case 2: // Verificar respuesta
+                    String respuesta = txtRespuesta.getText().trim();
+                    if (respuesta.isEmpty()) {
+                        mostrarMensaje(dialogoRecuperacion, "Ingrese su respuesta", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                    
+                    if (usuarioDAO.verificarRespuestaSeguridad(usuarioRecuperar[0].getUsuario(), respuesta)) {
+                        // Respuesta correcta, mostrar campos de nueva contraseña
+                        panelNuevaContrasena.setVisible(true);
+                        txtRespuesta.setEditable(false);
+                        btnAccion.setText("Cambiar Contraseña");
+                        paso[0] = 3;
+                        dialogoRecuperacion.pack();
+                    } else {
+                        mostrarMensaje(dialogoRecuperacion, "Respuesta incorrecta", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                    break;
+                    
+                case 3: // Cambiar contraseña
+                    String nuevaPass = new String(txtNuevaContrasena.getPassword());
+                    String confirmarPass = new String(txtConfirmarContrasena.getPassword());
+                    
+                    if (nuevaPass.isEmpty() || confirmarPass.isEmpty()) {
+                        mostrarMensaje(dialogoRecuperacion, "Complete ambos campos de contraseña", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                    
+                    if (!nuevaPass.equals(confirmarPass)) {
+                        mostrarMensaje(dialogoRecuperacion, "Las contraseñas no coinciden", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                    
+                    if (nuevaPass.length() < 4) {
+                        mostrarMensaje(dialogoRecuperacion, "La contraseña debe tener al menos 4 caracteres", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                    
+                    if (usuarioDAO.actualizarContrasena(usuarioRecuperar[0].getCodigo(), nuevaPass)) {
+                        mostrarMensaje(dialogoRecuperacion, "¡Contraseña actualizada exitosamente!\nYa puede iniciar sesión con su nueva contraseña.", 
+                            "Éxito", JOptionPane.INFORMATION_MESSAGE);
+                        dialogoRecuperacion.dispose();
+                    } else {
+                        mostrarMensaje(dialogoRecuperacion, "Error al actualizar la contraseña", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                    break;
+            }
+        });
+        panelCentral.add(btnAccion);
+        
+        panelCentral.add(Box.createVerticalStrut(12));
+        
+        JButton btnCancelar = crearBotonSecundario("Cancelar");
+        btnCancelar.addActionListener(e -> dialogoRecuperacion.dispose());
+        panelCentral.add(btnCancelar);
+        
+        panelFondo.add(panelCentral);
+        dialogoRecuperacion.add(panelFondo);
+        dialogoRecuperacion.pack();
+        dialogoRecuperacion.setLocationRelativeTo(this);
+        dialogoRecuperacion.setVisible(true);
     }
 
     private JTextField agregarCampo(JPanel panel, String etiqueta) {
