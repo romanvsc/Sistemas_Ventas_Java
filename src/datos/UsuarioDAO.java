@@ -201,4 +201,251 @@ public class UsuarioDAO {
         
         return false;
     }
+
+    // ==================== MÉTODOS PARA GESTIÓN AVANZADA DE USUARIOS ====================
+    
+    /**
+     * Obtiene un usuario por nombre de usuario (para recuperación de contraseña)
+     */
+    public Usuario obtenerPorNombreUsuario(String nombreUsuario) {
+        String sql = "SELECT * FROM Cliente WHERE Usuario = ?";
+        Usuario usuario = null;
+        
+        try (Connection conn = conexionMySQL.obtenerConexion();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, nombreUsuario);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                usuario = mapearUsuario(rs);
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Error al obtener usuario por nombre: " + e.getMessage());
+        }
+        
+        return usuario;
+    }
+    
+    /**
+     * Obtiene un usuario por email
+     */
+    public Usuario obtenerPorEmail(String email) {
+        String sql = "SELECT * FROM Cliente WHERE Email = ?";
+        Usuario usuario = null;
+        
+        try (Connection conn = conexionMySQL.obtenerConexion();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, email);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                usuario = mapearUsuario(rs);
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Error al obtener usuario por email: " + e.getMessage());
+        }
+        
+        return usuario;
+    }
+    
+    /**
+     * Actualiza la contraseña de un usuario
+     */
+    public boolean actualizarContrasena(int codigoUsuario, String nuevaContrasena) {
+        String sql = "UPDATE Cliente SET Contrasena = ? WHERE Codigo = ?";
+        
+        try (Connection conn = conexionMySQL.obtenerConexion();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, nuevaContrasena);
+            stmt.setInt(2, codigoUsuario);
+            
+            return stmt.executeUpdate() > 0;
+            
+        } catch (SQLException e) {
+            System.err.println("Error al actualizar contraseña: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Actualiza el perfil del usuario (datos extendidos)
+     */
+    public boolean actualizarPerfil(Usuario usuario) {
+        String sql = """
+            UPDATE Cliente SET 
+                Nombre = ?, 
+                Email = ?, 
+                Telefono = ?, 
+                Direccion = ?,
+                PreguntaSeguridad = ?,
+                RespuestaSeguridad = ?
+            WHERE Codigo = ?
+        """;
+        
+        try (Connection conn = conexionMySQL.obtenerConexion();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, usuario.getNombre());
+            stmt.setString(2, usuario.getEmail());
+            stmt.setString(3, usuario.getTelefono());
+            stmt.setString(4, usuario.getDireccion());
+            stmt.setString(5, usuario.getPreguntaSeguridad());
+            stmt.setString(6, usuario.getRespuestaSeguridad());
+            stmt.setInt(7, usuario.getCodigo());
+            
+            return stmt.executeUpdate() > 0;
+            
+        } catch (SQLException e) {
+            System.err.println("Error al actualizar perfil: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Configura la pregunta y respuesta de seguridad
+     */
+    public boolean configurarRecuperacion(int codigoUsuario, String pregunta, String respuesta) {
+        String sql = "UPDATE Cliente SET PreguntaSeguridad = ?, RespuestaSeguridad = ? WHERE Codigo = ?";
+        
+        try (Connection conn = conexionMySQL.obtenerConexion();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, pregunta);
+            stmt.setString(2, respuesta);
+            stmt.setInt(3, codigoUsuario);
+            
+            return stmt.executeUpdate() > 0;
+            
+        } catch (SQLException e) {
+            System.err.println("Error al configurar recuperación: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Verifica la respuesta de seguridad
+     */
+    public boolean verificarRespuestaSeguridad(String nombreUsuario, String respuesta) {
+        String sql = "SELECT RespuestaSeguridad FROM Cliente WHERE Usuario = ?";
+        
+        try (Connection conn = conexionMySQL.obtenerConexion();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, nombreUsuario);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                String respuestaGuardada = rs.getString("RespuestaSeguridad");
+                if (respuestaGuardada != null && respuesta != null) {
+                    return respuestaGuardada.equalsIgnoreCase(respuesta.trim());
+                }
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Error al verificar respuesta: " + e.getMessage());
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Obtiene la pregunta de seguridad de un usuario
+     */
+    public String obtenerPreguntaSeguridad(String nombreUsuario) {
+        String sql = "SELECT PreguntaSeguridad FROM Cliente WHERE Usuario = ?";
+        
+        try (Connection conn = conexionMySQL.obtenerConexion();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, nombreUsuario);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                return rs.getString("PreguntaSeguridad");
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Error al obtener pregunta: " + e.getMessage());
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Busca usuarios por nombre o usuario
+     */
+    public List<Usuario> buscar(String termino) {
+        List<Usuario> usuarios = new ArrayList<>();
+        String sql = "SELECT * FROM Cliente WHERE LOWER(Nombre) LIKE LOWER(?) OR LOWER(Usuario) LIKE LOWER(?) ORDER BY Nombre";
+        
+        try (Connection conn = conexionMySQL.obtenerConexion();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            String busqueda = "%" + termino + "%";
+            stmt.setString(1, busqueda);
+            stmt.setString(2, busqueda);
+            
+            ResultSet rs = stmt.executeQuery();
+            
+            while (rs.next()) {
+                usuarios.add(mapearUsuario(rs));
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Error al buscar usuarios: " + e.getMessage());
+        }
+        
+        return usuarios;
+    }
+    
+    /**
+     * Cuenta el total de usuarios
+     */
+    public int contarUsuarios() {
+        String sql = "SELECT COUNT(*) FROM Cliente";
+        
+        try (Connection conn = conexionMySQL.obtenerConexion();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Error al contar usuarios: " + e.getMessage());
+        }
+        
+        return 0;
+    }
+    
+    /**
+     * Mapea un ResultSet a un objeto Usuario
+     */
+    private Usuario mapearUsuario(ResultSet rs) throws SQLException {
+        Usuario usuario = new Usuario();
+        usuario.setCodigo(rs.getInt("Codigo"));
+        usuario.setNombre(rs.getString("Nombre"));
+        usuario.setUsuario(rs.getString("Usuario"));
+        usuario.setContrasena(rs.getString("Contrasena"));
+        usuario.setPresupuesto(rs.getDouble("presupuesto"));
+        
+        // Intentar obtener campos extendidos (pueden no existir)
+        try {
+            usuario.setEmail(rs.getString("Email"));
+            usuario.setTelefono(rs.getString("Telefono"));
+            usuario.setDireccion(rs.getString("Direccion"));
+            usuario.setPreguntaSeguridad(rs.getString("PreguntaSeguridad"));
+            usuario.setRespuestaSeguridad(rs.getString("RespuestaSeguridad"));
+        } catch (SQLException e) {
+            // Columnas no existen, ignorar
+        }
+        
+        return usuario;
+    }
 }

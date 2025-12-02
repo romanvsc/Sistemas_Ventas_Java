@@ -6,12 +6,16 @@ import datos.CompraDAO;
 import modelo.Usuario;
 import modelo.Producto;
 import modelo.Compra;
+import modelo.EstadisticaProducto;
 import java.util.List;
 
 public class ServicioAdmin {
     private UsuarioDAO usuarioDAO;
     private ProductoDAO productoDAO;
     private CompraDAO compraDAO;
+    
+    // Umbral por defecto para alertas de stock bajo
+    private static final int UMBRAL_STOCK_BAJO_DEFAULT = 10;
 
     public ServicioAdmin() {
         this.usuarioDAO = new UsuarioDAO();
@@ -216,8 +220,65 @@ public class ServicioAdmin {
      * @return Lista de productos con stock bajo
      */
     public List<Producto> obtenerProductosConStockBajo() {
-        return productoDAO.listarTodos().stream()
-                .filter(p -> p.getCantidad() < 5)
-                .toList();
+        return productoDAO.listarConStockBajo(UMBRAL_STOCK_BAJO_DEFAULT);
+    }
+
+    /**
+     * Obtiene productos con stock bajo según umbral personalizado
+     * @param umbral Umbral de stock bajo
+     * @return Lista de productos con stock bajo
+     */
+    public List<Producto> obtenerProductosConStockBajo(int umbral) {
+        return productoDAO.listarConStockBajo(umbral);
+    }
+
+    /**
+     * Cuenta productos con stock bajo
+     * @return Cantidad de productos con stock bajo
+     */
+    public int contarProductosStockBajo() {
+        return productoDAO.contarProductosStockBajo(UMBRAL_STOCK_BAJO_DEFAULT);
+    }
+
+    /**
+     * Cuenta productos con stock bajo según umbral personalizado
+     * @param umbral Umbral de stock bajo
+     * @return Cantidad de productos con stock bajo
+     */
+    public int contarProductosStockBajo(int umbral) {
+        return productoDAO.contarProductosStockBajo(umbral);
+    }
+
+    /**
+     * Obtiene los productos más vendidos (Top N)
+     * @param limite Cantidad de productos a retornar
+     * @return Lista de estadísticas de productos
+     */
+    public List<EstadisticaProducto> obtenerProductosMasVendidos(int limite) {
+        return compraDAO.obtenerProductosMasVendidos(limite);
+    }
+
+    /**
+     * Obtiene el total de ventas realizadas
+     * @return Monto total de ventas
+     */
+    public double obtenerTotalVentas() {
+        return compraDAO.obtenerTotalVentas();
+    }
+
+    /**
+     * Obtiene la cantidad total de productos vendidos
+     * @return Cantidad total de unidades vendidas
+     */
+    public int obtenerCantidadProductosVendidos() {
+        return compraDAO.obtenerCantidadProductosVendidos();
+    }
+
+    /**
+     * Obtiene el umbral por defecto para stock bajo
+     * @return Umbral de stock bajo
+     */
+    public int getUmbralStockBajoDefault() {
+        return UMBRAL_STOCK_BAJO_DEFAULT;
     }
 }

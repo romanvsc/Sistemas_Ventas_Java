@@ -6,6 +6,13 @@ public class Usuario {
     private String usuario;
     private String contrasena;
     private double presupuesto;
+    
+    // Nuevos campos para gestión avanzada de usuarios
+    private String email;
+    private String telefono;
+    private String direccion;
+    private String preguntaSeguridad;
+    private String respuestaSeguridad;
 
     // Constructor vacío
     public Usuario() {
@@ -77,6 +84,65 @@ public class Usuario {
     public void setPresupuesto(double presupuesto) {
         this.presupuesto = presupuesto;
     }
+    
+    // Nuevos getters y setters
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getTelefono() {
+        return telefono;
+    }
+
+    public void setTelefono(String telefono) {
+        this.telefono = telefono;
+    }
+
+    public String getDireccion() {
+        return direccion;
+    }
+
+    public void setDireccion(String direccion) {
+        this.direccion = direccion;
+    }
+
+    public String getPreguntaSeguridad() {
+        return preguntaSeguridad;
+    }
+
+    public void setPreguntaSeguridad(String preguntaSeguridad) {
+        this.preguntaSeguridad = preguntaSeguridad;
+    }
+
+    public String getRespuestaSeguridad() {
+        return respuestaSeguridad;
+    }
+
+    public void setRespuestaSeguridad(String respuestaSeguridad) {
+        this.respuestaSeguridad = respuestaSeguridad;
+    }
+    
+    /**
+     * Verifica si el usuario tiene configurada la recuperación de contraseña
+     */
+    public boolean tieneRecuperacionConfigurada() {
+        return preguntaSeguridad != null && !preguntaSeguridad.isEmpty() &&
+               respuestaSeguridad != null && !respuestaSeguridad.isEmpty();
+    }
+    
+    /**
+     * Verifica la respuesta de seguridad
+     */
+    public boolean verificarRespuestaSeguridad(String respuesta) {
+        if (respuestaSeguridad == null || respuesta == null) {
+            return false;
+        }
+        return respuestaSeguridad.equalsIgnoreCase(respuesta.trim());
+    }
 
     @Override
     public String toString() {
@@ -84,6 +150,7 @@ public class Usuario {
                 "codigo=" + codigo +
                 ", nombre='" + nombre + '\'' +
                 ", usuario='" + usuario + '\'' +
+                ", email='" + email + '\'' +
                 ", presupuesto=" + presupuesto +
                 '}';
     }

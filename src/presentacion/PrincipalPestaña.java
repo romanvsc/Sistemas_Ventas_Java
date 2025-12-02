@@ -4,10 +4,18 @@ import modelo.Usuario;
 import modelo.Producto;
 import modelo.Compra;
 import modelo.DetalleCompra;
+import modelo.EstadisticaProducto;
+import modelo.ItemDeseo;
+import modelo.CarritoItem;
+import modelo.Descuento;
 import servicios.ServicioProducto;
 import servicios.ServicioCompra;
 import servicios.ServicioAdmin;
+import servicios.ServicioListaDeseos;
+import servicios.ServicioCarrito;
+import servicios.ServicioDescuento;
 import datos.UsuarioDAO;
+import datos.ProductoDAO;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -37,6 +45,9 @@ public class PrincipalPestaña extends JFrame {
     private ServicioProducto servicioProducto;
     private ServicioCompra servicioCompra;
     private ServicioAdmin servicioAdmin;
+    private ServicioListaDeseos servicioListaDeseos;
+    private ServicioCarrito servicioCarritoPersistente;
+    private ServicioDescuento servicioDescuento;
     
     // Componentes principales
     private JTabbedPane tabbedPane;
@@ -45,11 +56,24 @@ public class PrincipalPestaña extends JFrame {
     // Pestaña de Productos
     private JTable tablaProductos;
     private DefaultTableModel modeloTablaProductos;
+    private JTextField txtBusqueda;
+    private JComboBox<String> cmbCategoria;
+    private JTextField txtPrecioMin;
+    private JTextField txtPrecioMax;
+    private JCheckBox chkSoloConStock;
     
     // Pestaña de Carrito
     private JTable tablaCarrito;
     private DefaultTableModel modeloTablaCarrito;
     private JLabel lblTotal;
+    private JLabel lblDescuento;
+    private JLabel lblTotalFinal;
+    private JTextField txtCodigoDescuento;
+    private Descuento descuentoAplicado;
+    
+    // Pestaña de Lista de Deseos
+    private JTable tablaDeseos;
+    private DefaultTableModel modeloTablaDeseos;
     
     // Pestaña de Mis Compras
     private JTable tablaMisCompras;
@@ -58,12 +82,24 @@ public class PrincipalPestaña extends JFrame {
     // Pestaña de Administración (solo para admin)
     private JTable tablaAdminProductos;
     private DefaultTableModel modeloTablaAdminProductos;
+    
+    // Pestaña de Reportes (solo para admin)
+    private JTable tablaProductosMasVendidos;
+    private DefaultTableModel modeloTablaProductosMasVendidos;
+    private JTable tablaStockBajo;
+    private DefaultTableModel modeloTablaStockBajo;
+    private JLabel lblTotalVentas;
+    private JLabel lblCantidadVendida;
+    private JLabel lblProductosStockBajo;
 
     public PrincipalPestaña(Usuario usuario) {
         this.usuarioActual = usuario;
         this.servicioProducto = new ServicioProducto();
         this.servicioCompra = new ServicioCompra();
         this.servicioAdmin = new ServicioAdmin();
+        this.servicioListaDeseos = new ServicioListaDeseos();
+        this.servicioCarritoPersistente = new ServicioCarrito();
+        this.servicioDescuento = new ServicioDescuento();
         this.carritoActual = servicioCompra.crearNuevaCompra(usuario.getCodigo());
         
         inicializarComponentes();
@@ -94,16 +130,146 @@ public class PrincipalPestaña extends JFrame {
         
         if (!esInvitado) {
             tabbedPane.addTab("Carrito", crearPanelCarrito());
+            tabbedPane.addTab("Lista de Deseos", crearPanelListaDeseos());
             tabbedPane.addTab("Mis Compras", crearPanelMisCompras());
         }
         
         // Solo mostrar administración si es usuario "admin"
         if (usuarioActual.getUsuario().equalsIgnoreCase("admin")) {
             tabbedPane.addTab("Administración", crearPanelAdministracion());
+            tabbedPane.addTab("Reportes", crearPanelReportes());
         }
 
         panelPrincipal.add(tabbedPane, BorderLayout.CENTER);
         add(panelPrincipal);
+        
+        // Mostrar mensajes de bienvenida después de iniciar sesión
+        SwingUtilities.invokeLater(() -> mostrarMensajesBienvenida());
+    }
+    
+    /**
+     * Muestra mensajes de bienvenida personalizados según el tipo de usuario
+     */
+    private void mostrarMensajesBienvenida() {
+        boolean esInvitado = usuarioActual.getUsuario().equalsIgnoreCase("invitado");
+        boolean esAdmin = usuarioActual.getUsuario().equalsIgnoreCase("admin");
+        
+        StringBuilder mensaje = new StringBuilder();
+        mensaje.append("¡Bienvenido(a), ").append(usuarioActual.getNombre()).append("!\n\n");
+        
+        boolean hayNotificaciones = false;
+        
+        // Para usuarios normales (no invitados): verificar lista de deseos
+        if (!esInvitado) {
+            List<ItemDeseo> listaDeseos = servicioListaDeseos.obtenerListaDeseos(usuarioActual.getCodigo());
+            
+            if (!listaDeseos.isEmpty()) {
+                // Verificar productos de la lista de deseos que ahora tienen stock
+                List<ItemDeseo> conStockDisponible = new java.util.ArrayList<>();
+                for (ItemDeseo item : listaDeseos) {
+                    if (item.getStockProducto() > 0) {
+                        conStockDisponible.add(item);
+                    }
+                }
+                
+                if (!conStockDisponible.isEmpty()) {
+                    hayNotificaciones = true;
+                    mensaje.append("🎉 ¡Buenas noticias! Productos de tu Lista de Deseos con stock disponible:\n\n");
+                    
+                    int mostrar = Math.min(conStockDisponible.size(), 5);
+                    for (int i = 0; i < mostrar; i++) {
+                        ItemDeseo item = conStockDisponible.get(i);
+                        mensaje.append("  ✓ ").append(item.getDescripcionProducto())
+                               .append(" - $").append(String.format("%.2f", item.getPrecioProducto()))
+                               .append(" (").append(item.getStockProducto()).append(" disponibles)\n");
+                    }
+                    
+                    if (conStockDisponible.size() > 5) {
+                        mensaje.append("  ... y ").append(conStockDisponible.size() - 5).append(" producto(s) más.\n");
+                    }
+                    mensaje.append("\n");
+                }
+            }
+            
+            // Verificar carrito guardado
+            List<CarritoItem> carritoGuardado = servicioCarritoPersistente.obtenerCarrito(usuarioActual.getCodigo());
+            if (!carritoGuardado.isEmpty()) {
+                hayNotificaciones = true;
+                double totalCarrito = servicioCarritoPersistente.calcularSubtotal(usuarioActual.getCodigo());
+                mensaje.append("🛒 Tienes ").append(carritoGuardado.size())
+                       .append(" producto(s) guardado(s) en tu carrito (Total: $")
+                       .append(String.format("%.2f", totalCarrito)).append(")\n\n");
+            }
+        }
+        
+        // Para admin: verificar stock bajo
+        if (esAdmin) {
+            int cantidadStockBajo = servicioAdmin.contarProductosStockBajo();
+            
+            if (cantidadStockBajo > 0) {
+                hayNotificaciones = true;
+                List<Producto> productosStockBajo = servicioAdmin.obtenerProductosConStockBajo();
+                
+                mensaje.append("⚠️ ALERTA DE INVENTARIO - ").append(cantidadStockBajo).append(" producto(s) con stock bajo:\n\n");
+                
+                int mostrar = Math.min(productosStockBajo.size(), 5);
+                for (int i = 0; i < mostrar; i++) {
+                    Producto p = productosStockBajo.get(i);
+                    String estado = p.getCantidad() == 0 ? "❌ SIN STOCK" : "⚠️ " + p.getCantidad() + " unid.";
+                    mensaje.append("  • ").append(p.getDescripcion()).append(" - ").append(estado).append("\n");
+                }
+                
+                if (productosStockBajo.size() > 5) {
+                    mensaje.append("  ... y ").append(productosStockBajo.size() - 5).append(" más.\n");
+                }
+                mensaje.append("\n");
+            }
+        }
+        
+        // Mostrar mensaje según el contenido
+        if (hayNotificaciones) {
+            if (esAdmin) {
+                mensaje.append("¿Desea ir a la pestaña de Reportes para gestionar el inventario?");
+                
+                int respuesta = JOptionPane.showConfirmDialog(this,
+                    mensaje.toString(),
+                    "Bienvenido - Notificaciones",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.INFORMATION_MESSAGE);
+                
+                if (respuesta == JOptionPane.YES_OPTION) {
+                    for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+                        if (tabbedPane.getTitleAt(i).equals("Reportes")) {
+                            tabbedPane.setSelectedIndex(i);
+                            break;
+                        }
+                    }
+                }
+            } else if (!esInvitado) {
+                mensaje.append("¿Desea ir a la Lista de Deseos?");
+                
+                int respuesta = JOptionPane.showConfirmDialog(this,
+                    mensaje.toString(),
+                    "Bienvenido - Notificaciones",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.INFORMATION_MESSAGE);
+                
+                if (respuesta == JOptionPane.YES_OPTION) {
+                    for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+                        if (tabbedPane.getTitleAt(i).equals("Lista de Deseos")) {
+                            tabbedPane.setSelectedIndex(i);
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            // Solo mostrar bienvenida simple si no hay notificaciones
+            JOptionPane.showMessageDialog(this,
+                mensaje.append("¡Gracias por visitarnos! Explora nuestros productos.").toString(),
+                "Bienvenido",
+                JOptionPane.INFORMATION_MESSAGE);
+        }
     }
     
     private JPanel crearHeader() {
@@ -165,6 +331,10 @@ public class PrincipalPestaña extends JFrame {
             new EmptyBorder(20, 20, 20, 20)
         ));
 
+        // Panel superior con título y búsqueda
+        JPanel panelSuperior = new JPanel(new BorderLayout(10, 10));
+        panelSuperior.setBackground(COLOR_CARD);
+        
         // Título con icono
         JPanel panelTitulo = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         panelTitulo.setBackground(COLOR_CARD);
@@ -178,10 +348,83 @@ public class PrincipalPestaña extends JFrame {
         lblTitulo.setForeground(TECH_DARK);
         panelTitulo.add(lblTitulo);
         
-        panelContenido.add(panelTitulo, BorderLayout.NORTH);
+        panelSuperior.add(panelTitulo, BorderLayout.NORTH);
+        
+        // Panel de búsqueda y filtros
+        JPanel panelBusqueda = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        panelBusqueda.setBackground(new Color(248, 250, 252));
+        panelBusqueda.setBorder(BorderFactory.createCompoundBorder(
+            new RoundedBorder(new Color(226, 232, 240), 1, 8),
+            new EmptyBorder(10, 15, 10, 15)
+        ));
+        
+        // Campo de búsqueda
+        JLabel lblBuscar = new JLabel("🔍");
+        panelBusqueda.add(lblBuscar);
+        
+        txtBusqueda = new JTextField(15);
+        txtBusqueda.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        txtBusqueda.setBorder(BorderFactory.createCompoundBorder(
+            new RoundedBorder(new Color(200, 200, 200), 1, 6),
+            new EmptyBorder(5, 10, 5, 10)
+        ));
+        txtBusqueda.setToolTipText("Buscar por nombre");
+        panelBusqueda.add(txtBusqueda);
+        
+        // Categoría
+        panelBusqueda.add(new JLabel("Categoría:"));
+        cmbCategoria = new JComboBox<>();
+        cmbCategoria.addItem("Todas");
+        cmbCategoria.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cmbCategoria.setPreferredSize(new Dimension(120, 28));
+        panelBusqueda.add(cmbCategoria);
+        
+        // Rango de precio
+        panelBusqueda.add(new JLabel("Precio:"));
+        txtPrecioMin = new JTextField(6);
+        txtPrecioMin.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        txtPrecioMin.setBorder(BorderFactory.createCompoundBorder(
+            new RoundedBorder(new Color(200, 200, 200), 1, 6),
+            new EmptyBorder(3, 8, 3, 8)
+        ));
+        txtPrecioMin.setToolTipText("Precio mínimo");
+        panelBusqueda.add(txtPrecioMin);
+        
+        panelBusqueda.add(new JLabel("-"));
+        
+        txtPrecioMax = new JTextField(6);
+        txtPrecioMax.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        txtPrecioMax.setBorder(BorderFactory.createCompoundBorder(
+            new RoundedBorder(new Color(200, 200, 200), 1, 6),
+            new EmptyBorder(3, 8, 3, 8)
+        ));
+        txtPrecioMax.setToolTipText("Precio máximo");
+        panelBusqueda.add(txtPrecioMax);
+        
+        // Solo con stock
+        chkSoloConStock = new JCheckBox("Solo con stock");
+        chkSoloConStock.setSelected(true);
+        chkSoloConStock.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        chkSoloConStock.setBackground(new Color(248, 250, 252));
+        panelBusqueda.add(chkSoloConStock);
+        
+        // Botón buscar
+        JButton btnBuscar = crearBotonPrimario("Buscar");
+        btnBuscar.setPreferredSize(new Dimension(90, 30));
+        btnBuscar.addActionListener(e -> buscarProductos());
+        panelBusqueda.add(btnBuscar);
+        
+        // Botón limpiar
+        JButton btnLimpiar = crearBotonSecundario("Limpiar");
+        btnLimpiar.setPreferredSize(new Dimension(80, 30));
+        btnLimpiar.addActionListener(e -> limpiarFiltros());
+        panelBusqueda.add(btnLimpiar);
+        
+        panelSuperior.add(panelBusqueda, BorderLayout.SOUTH);
+        panelContenido.add(panelSuperior, BorderLayout.NORTH);
 
         // Tabla de productos
-        String[] columnas = {"Código", "Producto", "Stock", "Precio"};
+        String[] columnas = {"Código", "Producto", "Categoría", "Stock", "Precio", "♥"};
         modeloTablaProductos = new DefaultTableModel(columnas, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -190,6 +433,13 @@ public class PrincipalPestaña extends JFrame {
         };
         tablaProductos = new JTable(modeloTablaProductos);
         estilizarTabla(tablaProductos);
+        tablaProductos.getColumnModel().getColumn(0).setPreferredWidth(60);
+        tablaProductos.getColumnModel().getColumn(1).setPreferredWidth(250);
+        tablaProductos.getColumnModel().getColumn(2).setPreferredWidth(100);
+        tablaProductos.getColumnModel().getColumn(3).setPreferredWidth(60);
+        tablaProductos.getColumnModel().getColumn(4).setPreferredWidth(80);
+        tablaProductos.getColumnModel().getColumn(5).setPreferredWidth(30);
+        
         JScrollPane scrollPane = new JScrollPane(tablaProductos);
         scrollPane.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240), 1));
         scrollPane.getViewport().setBackground(COLOR_BLANCO);
@@ -202,6 +452,13 @@ public class PrincipalPestaña extends JFrame {
         JButton btnActualizar = crearBotonSecundario(" Actualizar");
         btnActualizar.addActionListener(e -> cargarProductos());
         panelBotones.add(btnActualizar);
+        
+        // Solo mostrar botón de deseos si no es invitado
+        if (!usuarioActual.getUsuario().equalsIgnoreCase("invitado")) {
+            JButton btnDeseos = crearBotonSecundario("♥ Lista de Deseos");
+            btnDeseos.addActionListener(e -> agregarAListaDeseos());
+            panelBotones.add(btnDeseos);
+        }
 
         JButton btnAgregar = crearBotonPrimario(" Agregar al Carrito");
         btnAgregar.addActionListener(e -> agregarProductoAlCarrito());
@@ -210,7 +467,99 @@ public class PrincipalPestaña extends JFrame {
         panelContenido.add(panelBotones, BorderLayout.SOUTH);
         panel.add(panelContenido, BorderLayout.CENTER);
 
+        // Cargar categorías
+        cargarCategorias();
+        
+        // Listener para búsqueda al presionar Enter
+        txtBusqueda.addActionListener(e -> buscarProductos());
+
         return panel;
+    }
+    
+    private void cargarCategorias() {
+        ProductoDAO productoDAO = new ProductoDAO();
+        List<String> categorias = productoDAO.listarCategorias();
+        
+        cmbCategoria.removeAllItems();
+        cmbCategoria.addItem("Todas");
+        for (String cat : categorias) {
+            cmbCategoria.addItem(cat);
+        }
+    }
+    
+    private void buscarProductos() {
+        String termino = txtBusqueda.getText().trim();
+        String categoria = (String) cmbCategoria.getSelectedItem();
+        
+        Double precioMin = null;
+        Double precioMax = null;
+        
+        try {
+            if (!txtPrecioMin.getText().trim().isEmpty()) {
+                precioMin = Double.parseDouble(txtPrecioMin.getText().trim());
+            }
+            if (!txtPrecioMax.getText().trim().isEmpty()) {
+                precioMax = Double.parseDouble(txtPrecioMax.getText().trim());
+            }
+        } catch (NumberFormatException e) {
+            mostrarMensaje(this, "Los valores de precio deben ser numéricos", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        Boolean soloConStock = chkSoloConStock.isSelected();
+        
+        ProductoDAO productoDAO = new ProductoDAO();
+        List<Producto> productos = productoDAO.buscarAvanzado(termino, categoria, precioMin, precioMax, soloConStock);
+        
+        modeloTablaProductos.setRowCount(0);
+        for (Producto p : productos) {
+            boolean enDeseos = !usuarioActual.getUsuario().equalsIgnoreCase("invitado") && 
+                              servicioListaDeseos.estaEnListaDeseos(usuarioActual.getCodigo(), p.getCodigo());
+            
+            modeloTablaProductos.addRow(new Object[]{
+                p.getCodigo(),
+                p.getDescripcion(),
+                p.getCategoria() != null ? p.getCategoria() : "-",
+                p.getCantidad(),
+                String.format("$%.2f", p.getPrecio()),
+                enDeseos ? "❤️" : "🤍"
+            });
+        }
+    }
+    
+    private void limpiarFiltros() {
+        txtBusqueda.setText("");
+        cmbCategoria.setSelectedIndex(0);
+        txtPrecioMin.setText("");
+        txtPrecioMax.setText("");
+        chkSoloConStock.setSelected(true);
+        cargarProductos();
+    }
+    
+    private void agregarAListaDeseos() {
+        int filaSeleccionada = tablaProductos.getSelectedRow();
+        
+        if (filaSeleccionada == -1) {
+            mostrarMensaje(this, "Seleccione un producto", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        int codigoProducto = (int) modeloTablaProductos.getValueAt(filaSeleccionada, 0);
+        
+        boolean agregado = servicioListaDeseos.alternar(usuarioActual.getCodigo(), codigoProducto);
+        
+        if (agregado) {
+            modeloTablaProductos.setValueAt("❤️", filaSeleccionada, 5);
+            mostrarMensaje(this, "Producto agregado a la lista de deseos", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            modeloTablaProductos.setValueAt("🤍", filaSeleccionada, 5);
+            mostrarMensaje(this, "Producto eliminado de la lista de deseos", "Info", JOptionPane.INFORMATION_MESSAGE);
+        }
+        
+        // Actualizar pestaña de deseos si existe
+        if (modeloTablaDeseos != null) {
+            cargarListaDeseos();
+        }
     }
 
     private JPanel crearPanelCarrito() {
@@ -260,16 +609,69 @@ public class PrincipalPestaña extends JFrame {
         JPanel panelInferior = new JPanel(new BorderLayout(0, 15));
         panelInferior.setBackground(COLOR_CARD);
         
-        // Total con estilo
-        JPanel panelTotal = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        panelTotal.setBackground(COLOR_CARD);
-        panelTotal.setBorder(new EmptyBorder(10, 0, 0, 0));
+        // Panel de cupón de descuento
+        JPanel panelDescuento = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        panelDescuento.setBackground(new Color(248, 250, 252));
+        panelDescuento.setBorder(BorderFactory.createCompoundBorder(
+            new RoundedBorder(new Color(226, 232, 240), 1, 8),
+            new EmptyBorder(8, 12, 8, 12)
+        ));
         
-        lblTotal = new JLabel("Total: $0.00");
-        lblTotal.setFont(new Font("Segoe UI", Font.BOLD, 24));
-        lblTotal.setForeground(TECH_GREEN);
-        panelTotal.add(lblTotal);
-        panelInferior.add(panelTotal, BorderLayout.NORTH);
+        JLabel lblCupon = new JLabel("🏷️ Código de descuento:");
+        lblCupon.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        panelDescuento.add(lblCupon);
+        
+        txtCodigoDescuento = new JTextField(12);
+        txtCodigoDescuento.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        txtCodigoDescuento.setBorder(BorderFactory.createCompoundBorder(
+            new RoundedBorder(new Color(200, 200, 200), 1, 6),
+            new EmptyBorder(5, 10, 5, 10)
+        ));
+        panelDescuento.add(txtCodigoDescuento);
+        
+        JButton btnAplicarCupon = crearBotonSecundario("Aplicar");
+        btnAplicarCupon.setPreferredSize(new Dimension(80, 30));
+        btnAplicarCupon.addActionListener(e -> aplicarCuponDescuento());
+        panelDescuento.add(btnAplicarCupon);
+        
+        JButton btnQuitarCupon = crearBotonSecundario("Quitar");
+        btnQuitarCupon.setPreferredSize(new Dimension(70, 30));
+        btnQuitarCupon.addActionListener(e -> quitarCuponDescuento());
+        panelDescuento.add(btnQuitarCupon);
+        
+        panelInferior.add(panelDescuento, BorderLayout.NORTH);
+        
+        // Panel de totales
+        JPanel panelTotales = new JPanel();
+        panelTotales.setLayout(new BoxLayout(panelTotales, BoxLayout.Y_AXIS));
+        panelTotales.setBackground(COLOR_CARD);
+        panelTotales.setBorder(new EmptyBorder(10, 0, 10, 0));
+        
+        JPanel panelSubtotal = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        panelSubtotal.setBackground(COLOR_CARD);
+        lblTotal = new JLabel("Subtotal: $0.00");
+        lblTotal.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        lblTotal.setForeground(COLOR_TEXTO);
+        panelSubtotal.add(lblTotal);
+        panelTotales.add(panelSubtotal);
+        
+        JPanel panelDescuentoAplicado = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        panelDescuentoAplicado.setBackground(COLOR_CARD);
+        lblDescuento = new JLabel("");
+        lblDescuento.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        lblDescuento.setForeground(TECH_RED);
+        panelDescuentoAplicado.add(lblDescuento);
+        panelTotales.add(panelDescuentoAplicado);
+        
+        JPanel panelTotalFinal = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        panelTotalFinal.setBackground(COLOR_CARD);
+        lblTotalFinal = new JLabel("Total: $0.00");
+        lblTotalFinal.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        lblTotalFinal.setForeground(TECH_GREEN);
+        panelTotalFinal.add(lblTotalFinal);
+        panelTotales.add(panelTotalFinal);
+        
+        panelInferior.add(panelTotales, BorderLayout.CENTER);
 
         // Botones
         JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
@@ -292,6 +694,209 @@ public class PrincipalPestaña extends JFrame {
         panel.add(panelContenido, BorderLayout.CENTER);
 
         return panel;
+    }
+    
+    private void aplicarCuponDescuento() {
+        String codigo = txtCodigoDescuento.getText().trim();
+        
+        if (codigo.isEmpty()) {
+            mostrarMensaje(this, "Ingrese un código de descuento", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        if (servicioCompra.estaVacia(carritoActual)) {
+            mostrarMensaje(this, "El carrito está vacío", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        Descuento descuento = servicioDescuento.validarCupon(codigo);
+        
+        if (descuento == null) {
+            mostrarMensaje(this, servicioDescuento.obtenerDescripcionCupon(codigo), "Cupón inválido", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        double subtotal = carritoActual.calcularTotal();
+        
+        if (!descuento.aplicaParaMonto(subtotal)) {
+            mostrarMensaje(this, 
+                String.format("Este cupón requiere un monto mínimo de $%.2f", descuento.getMontoMinimo()),
+                "Cupón no aplicable", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        descuentoAplicado = descuento;
+        actualizarTotalesCarrito();
+        mostrarMensaje(this, "¡Cupón aplicado! " + descuento.getDescuentoFormateado() + " de descuento", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+    }
+    
+    private void quitarCuponDescuento() {
+        descuentoAplicado = null;
+        txtCodigoDescuento.setText("");
+        actualizarTotalesCarrito();
+    }
+    
+    private void actualizarTotalesCarrito() {
+        double subtotal = carritoActual.calcularTotal();
+        lblTotal.setText(String.format("Subtotal: $%.2f", subtotal));
+        
+        if (descuentoAplicado != null && subtotal > 0) {
+            double montoDescuento = descuentoAplicado.calcularDescuento(subtotal);
+            double total = subtotal - montoDescuento;
+            
+            lblDescuento.setText(String.format("Descuento (%s): -$%.2f", 
+                descuentoAplicado.getDescuentoFormateado(), montoDescuento));
+            lblTotalFinal.setText(String.format("Total: $%.2f", total));
+        } else {
+            lblDescuento.setText("");
+            lblTotalFinal.setText(String.format("Total: $%.2f", subtotal));
+        }
+    }
+    
+    private JPanel crearPanelListaDeseos() {
+        JPanel panel = new JPanel(new BorderLayout(15, 15));
+        panel.setBackground(COLOR_FONDO);
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+
+        // Panel de contenido con fondo blanco
+        JPanel panelContenido = new JPanel(new BorderLayout(10, 10));
+        panelContenido.setBackground(COLOR_CARD);
+        panelContenido.setBorder(BorderFactory.createCompoundBorder(
+            new ShadowBorder(),
+            new EmptyBorder(20, 20, 20, 20)
+        ));
+
+        // Título con icono
+        JPanel panelTitulo = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        panelTitulo.setBackground(COLOR_CARD);
+        
+        JLabel lblIcono = new JLabel("❤️");
+        lblIcono.setFont(new Font("Segoe UI", Font.PLAIN, 22));
+        panelTitulo.add(lblIcono);
+        
+        JLabel lblTitulo = new JLabel("Mi Lista de Deseos");
+        lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        lblTitulo.setForeground(TECH_DARK);
+        panelTitulo.add(lblTitulo);
+        
+        panelContenido.add(panelTitulo, BorderLayout.NORTH);
+
+        // Tabla de deseos
+        String[] columnas = {"Código", "Producto", "Precio", "Stock", "Agregado"};
+        modeloTablaDeseos = new DefaultTableModel(columnas, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        tablaDeseos = new JTable(modeloTablaDeseos);
+        estilizarTabla(tablaDeseos);
+        tablaDeseos.getColumnModel().getColumn(0).setPreferredWidth(60);
+        tablaDeseos.getColumnModel().getColumn(1).setPreferredWidth(280);
+        tablaDeseos.getColumnModel().getColumn(2).setPreferredWidth(80);
+        tablaDeseos.getColumnModel().getColumn(3).setPreferredWidth(60);
+        tablaDeseos.getColumnModel().getColumn(4).setPreferredWidth(100);
+        
+        JScrollPane scrollPane = new JScrollPane(tablaDeseos);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240), 1));
+        scrollPane.getViewport().setBackground(COLOR_BLANCO);
+        panelContenido.add(scrollPane, BorderLayout.CENTER);
+
+        // Botones
+        JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        panelBotones.setBackground(COLOR_CARD);
+        
+        JButton btnActualizar = crearBotonSecundario("🔄 Actualizar");
+        btnActualizar.addActionListener(e -> cargarListaDeseos());
+        panelBotones.add(btnActualizar);
+        
+        JButton btnEliminar = crearBotonSecundario("🗑️ Eliminar");
+        btnEliminar.addActionListener(e -> eliminarDeListaDeseos());
+        panelBotones.add(btnEliminar);
+        
+        JButton btnMoverCarrito = crearBotonExito("🛒 Mover al Carrito");
+        btnMoverCarrito.addActionListener(e -> moverDeDeseoACarrito());
+        panelBotones.add(btnMoverCarrito);
+
+        panelContenido.add(panelBotones, BorderLayout.SOUTH);
+        panel.add(panelContenido, BorderLayout.CENTER);
+
+        return panel;
+    }
+    
+    private void cargarListaDeseos() {
+        if (modeloTablaDeseos == null) return;
+        
+        modeloTablaDeseos.setRowCount(0);
+        List<ItemDeseo> deseos = servicioListaDeseos.obtenerListaDeseos(usuarioActual.getCodigo());
+        
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        
+        for (ItemDeseo item : deseos) {
+            modeloTablaDeseos.addRow(new Object[]{
+                item.getCodigoProducto(),
+                item.getDescripcionProducto(),
+                String.format("$%.2f", item.getPrecioProducto()),
+                item.getStockProducto() > 0 ? item.getStockProducto() : "Sin stock",
+                item.getFechaAgregado().format(formatter)
+            });
+        }
+    }
+    
+    private void eliminarDeListaDeseos() {
+        int filaSeleccionada = tablaDeseos.getSelectedRow();
+        
+        if (filaSeleccionada == -1) {
+            mostrarMensaje(this, "Seleccione un producto", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        int codigoProducto = (int) modeloTablaDeseos.getValueAt(filaSeleccionada, 0);
+        
+        if (servicioListaDeseos.eliminar(usuarioActual.getCodigo(), codigoProducto)) {
+            cargarListaDeseos();
+            cargarProductos(); // Actualizar corazones
+            mostrarMensaje(this, "Producto eliminado de la lista de deseos", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+    
+    private void moverDeDeseoACarrito() {
+        int filaSeleccionada = tablaDeseos.getSelectedRow();
+        
+        if (filaSeleccionada == -1) {
+            mostrarMensaje(this, "Seleccione un producto", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        int codigoProducto = (int) modeloTablaDeseos.getValueAt(filaSeleccionada, 0);
+        Object stockObj = modeloTablaDeseos.getValueAt(filaSeleccionada, 3);
+        
+        if (stockObj instanceof String && stockObj.equals("Sin stock")) {
+            mostrarMensaje(this, "Este producto no tiene stock disponible", "Sin stock", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        // Agregar al carrito
+        if (servicioCompra.agregarProductoAlCarrito(carritoActual, codigoProducto, 1)) {
+            // Eliminar de la lista de deseos
+            servicioListaDeseos.eliminar(usuarioActual.getCodigo(), codigoProducto);
+            
+            cargarListaDeseos();
+            cargarProductos();
+            actualizarCarrito();
+            
+            mostrarMensaje(this, "Producto movido al carrito", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            
+            // Ir al carrito
+            for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+                if (tabbedPane.getTitleAt(i).equals("Carrito")) {
+                    tabbedPane.setSelectedIndex(i);
+                    break;
+                }
+            }
+        } else {
+            mostrarMensaje(this, "No se pudo agregar al carrito. Verifique el stock.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private JPanel crearPanelMisCompras() {
@@ -422,6 +1027,332 @@ public class PrincipalPestaña extends JFrame {
         panel.add(panelContenido, BorderLayout.CENTER);
 
         return panel;
+    }
+    
+    private JPanel crearPanelReportes() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(COLOR_FONDO);
+        panel.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+        // ==================== PANEL SUPERIOR: Cards de Estadísticas ====================
+        JPanel panelEstadisticas = new JPanel(new BorderLayout(10, 10));
+        panelEstadisticas.setBackground(COLOR_CARD);
+        panelEstadisticas.setBorder(BorderFactory.createCompoundBorder(
+            new ShadowBorder(),
+            new EmptyBorder(15, 20, 15, 20)
+        ));
+
+        // Título
+        JPanel panelTituloEst = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        panelTituloEst.setBackground(COLOR_CARD);
+        JLabel lblIconoEst = new JLabel("📊");
+        lblIconoEst.setFont(new Font("Segoe UI", Font.PLAIN, 20));
+        panelTituloEst.add(lblIconoEst);
+        JLabel lblTituloEst = new JLabel("Resumen de Ventas");
+        lblTituloEst.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        lblTituloEst.setForeground(TECH_DARK);
+        panelTituloEst.add(lblTituloEst);
+        panelEstadisticas.add(panelTituloEst, BorderLayout.NORTH);
+
+        // Cards
+        JPanel panelCards = new JPanel(new GridLayout(1, 3, 15, 0));
+        panelCards.setBackground(COLOR_CARD);
+        panelCards.setBorder(new EmptyBorder(10, 0, 5, 0));
+
+        lblTotalVentas = crearCardEstadistica("💰", "Total Ventas", "$0.00", TECH_GREEN);
+        panelCards.add(lblTotalVentas.getParent());
+        lblCantidadVendida = crearCardEstadistica("📦", "Unidades Vendidas", "0", TECH_BLUE);
+        panelCards.add(lblCantidadVendida.getParent());
+        lblProductosStockBajo = crearCardEstadistica("⚠️", "Productos Stock Bajo", "0", TECH_ORANGE);
+        panelCards.add(lblProductosStockBajo.getParent());
+
+        panelEstadisticas.add(panelCards, BorderLayout.CENTER);
+
+        // ==================== PANEL CENTRAL: Tablas lado a lado ====================
+        JPanel panelTablas = new JPanel(new GridLayout(1, 2, 15, 0));
+        panelTablas.setBackground(COLOR_FONDO);
+
+        // --- Panel Productos Más Vendidos ---
+        JPanel panelVendidos = new JPanel(new BorderLayout(10, 10));
+        panelVendidos.setBackground(COLOR_CARD);
+        panelVendidos.setBorder(BorderFactory.createCompoundBorder(
+            new ShadowBorder(),
+            new EmptyBorder(15, 15, 15, 15)
+        ));
+
+        JPanel panelTituloVend = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        panelTituloVend.setBackground(COLOR_CARD);
+        JLabel lblIconoVend = new JLabel("🏆");
+        lblIconoVend.setFont(new Font("Segoe UI", Font.PLAIN, 18));
+        panelTituloVend.add(lblIconoVend);
+        JLabel lblTituloVend = new JLabel("Top 10 Productos Más Vendidos");
+        lblTituloVend.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        lblTituloVend.setForeground(TECH_DARK);
+        panelTituloVend.add(lblTituloVend);
+        panelVendidos.add(panelTituloVend, BorderLayout.NORTH);
+
+        String[] columnasVendidos = {"Producto", "Cant.", "Total"};
+        modeloTablaProductosMasVendidos = new DefaultTableModel(columnasVendidos, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        tablaProductosMasVendidos = new JTable(modeloTablaProductosMasVendidos);
+        estilizarTabla(tablaProductosMasVendidos);
+        tablaProductosMasVendidos.getColumnModel().getColumn(0).setPreferredWidth(280);
+        tablaProductosMasVendidos.getColumnModel().getColumn(1).setPreferredWidth(50);
+        tablaProductosMasVendidos.getColumnModel().getColumn(2).setPreferredWidth(90);
+        tablaProductosMasVendidos.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+        
+        JScrollPane scrollVendidos = new JScrollPane(tablaProductosMasVendidos);
+        scrollVendidos.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240), 1));
+        scrollVendidos.getViewport().setBackground(COLOR_BLANCO);
+        panelVendidos.add(scrollVendidos, BorderLayout.CENTER);
+
+        // --- Panel Stock Bajo ---
+        JPanel panelStock = new JPanel(new BorderLayout(10, 10));
+        panelStock.setBackground(COLOR_CARD);
+        panelStock.setBorder(BorderFactory.createCompoundBorder(
+            new ShadowBorder(),
+            new EmptyBorder(15, 15, 15, 15)
+        ));
+
+        JPanel panelTituloStock = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        panelTituloStock.setBackground(COLOR_CARD);
+        JLabel lblIconoStock = new JLabel("⚠️");
+        lblIconoStock.setFont(new Font("Segoe UI", Font.PLAIN, 18));
+        panelTituloStock.add(lblIconoStock);
+        JLabel lblTituloStock = new JLabel("Productos con Stock Bajo");
+        lblTituloStock.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        lblTituloStock.setForeground(TECH_DARK);
+        panelTituloStock.add(lblTituloStock);
+        JLabel lblUmbral = new JLabel("  (≤ " + servicioAdmin.getUmbralStockBajoDefault() + " unid.)");
+        lblUmbral.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        lblUmbral.setForeground(new Color(120, 120, 120));
+        panelTituloStock.add(lblUmbral);
+        panelStock.add(panelTituloStock, BorderLayout.NORTH);
+
+        String[] columnasStock = {"Cód.", "Producto", "Stock", "Precio"};
+        modeloTablaStockBajo = new DefaultTableModel(columnasStock, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        tablaStockBajo = new JTable(modeloTablaStockBajo);
+        estilizarTablaStockBajo(tablaStockBajo);
+        tablaStockBajo.getColumnModel().getColumn(0).setPreferredWidth(40);
+        tablaStockBajo.getColumnModel().getColumn(1).setPreferredWidth(250);
+        tablaStockBajo.getColumnModel().getColumn(2).setPreferredWidth(50);
+        tablaStockBajo.getColumnModel().getColumn(3).setPreferredWidth(80);
+        tablaStockBajo.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+
+        JScrollPane scrollStock = new JScrollPane(tablaStockBajo);
+        scrollStock.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240), 1));
+        scrollStock.getViewport().setBackground(COLOR_BLANCO);
+        panelStock.add(scrollStock, BorderLayout.CENTER);
+
+        panelTablas.add(panelVendidos);
+        panelTablas.add(panelStock);
+
+        // ==================== PANEL INFERIOR: Botón Actualizar ====================
+        JPanel panelBoton = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 5));
+        panelBoton.setBackground(COLOR_FONDO);
+        JButton btnActualizarReportes = crearBotonSecundario("🔄 Actualizar Reportes");
+        btnActualizarReportes.addActionListener(e -> cargarDatosReportes());
+        panelBoton.add(btnActualizarReportes);
+
+        // Agregar todo al panel principal
+        panel.add(panelEstadisticas, BorderLayout.NORTH);
+        panel.add(panelTablas, BorderLayout.CENTER);
+        panel.add(panelBoton, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    private JLabel crearCardEstadistica(String icono, String titulo, String valor, Color color) {
+        JPanel card = new JPanel();
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setBackground(new Color(248, 250, 252));
+        card.setBorder(BorderFactory.createCompoundBorder(
+            new RoundedBorder(new Color(226, 232, 240), 1, 8),
+            new EmptyBorder(12, 15, 12, 15)
+        ));
+
+        JLabel lblIcono = new JLabel(icono + " " + titulo);
+        lblIcono.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        lblIcono.setForeground(new Color(100, 100, 100));
+        lblIcono.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.add(lblIcono);
+
+        card.add(Box.createVerticalStrut(5));
+
+        JLabel lblValor = new JLabel(valor);
+        lblValor.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        lblValor.setForeground(color);
+        lblValor.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.add(lblValor);
+
+        return lblValor;
+    }
+
+    private void estilizarTablaStockBajo(JTable tabla) {
+        tabla.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        tabla.setRowHeight(35);
+        tabla.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        tabla.setSelectionBackground(TECH_DARK);
+        tabla.setSelectionForeground(COLOR_BLANCO);
+        tabla.setShowVerticalLines(false);
+        tabla.setIntercellSpacing(new Dimension(0, 0));
+        tabla.setBackground(COLOR_BLANCO);
+        
+        // Estilizar header
+        JTableHeader header = tabla.getTableHeader();
+        header.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        header.setBackground(TECH_ORANGE);
+        header.setForeground(COLOR_BLANCO);
+        header.setPreferredSize(new Dimension(header.getPreferredSize().width, 40));
+        header.setBorder(BorderFactory.createEmptyBorder());
+        header.setOpaque(true);
+        
+        // Renderizador personalizado para el header
+        header.setDefaultRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                    boolean isSelected, boolean hasFocus, int row, int column) {
+                JLabel label = new JLabel(value != null ? value.toString() : "");
+                label.setFont(new Font("Segoe UI", Font.BOLD, 13));
+                label.setForeground(COLOR_TEXTO);
+                label.setBackground(TECH_ORANGE);
+                label.setOpaque(true);
+                label.setBorder(new EmptyBorder(10, 10, 10, 10));
+                label.setHorizontalAlignment(JLabel.LEFT);
+                return label;
+            }
+        });
+        
+        // Renderizador para resaltar filas con stock crítico
+        tabla.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                    boolean isSelected, boolean hasFocus, int row, int column) {
+                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                
+                if (!isSelected) {
+                    // Obtener el stock de la fila
+                    Object stockObj = table.getValueAt(row, 2);
+                    int stock = 0;
+                    if (stockObj instanceof Integer) {
+                        stock = (Integer) stockObj;
+                    }
+                    
+                    // Color de fondo según nivel de stock
+                    if (stock == 0) {
+                        setBackground(new Color(254, 226, 226)); // Rojo claro - sin stock
+                    } else if (stock <= 5) {
+                        setBackground(new Color(254, 243, 199)); // Amarillo claro - crítico
+                    } else {
+                        setBackground(row % 2 == 0 ? COLOR_BLANCO : new Color(248, 249, 252));
+                    }
+                } else {
+                    setBackground(TECH_DARK);
+                }
+                
+                // Color de texto
+                if (isSelected) {
+                    setForeground(COLOR_BLANCO);
+                } else if (value != null && value.toString().startsWith("$")) {
+                    setForeground(TECH_GREEN);
+                    setFont(new Font("Segoe UI", Font.BOLD, 13));
+                } else {
+                    setForeground(COLOR_TEXTO);
+                    setFont(new Font("Segoe UI", Font.PLAIN, 13));
+                }
+                
+                setBorder(new EmptyBorder(5, 10, 5, 10));
+                return this;
+            }
+        });
+    }
+
+    private void verificarAlertaStockBajo() {
+        int cantidadStockBajo = servicioAdmin.contarProductosStockBajo();
+        
+        if (cantidadStockBajo > 0) {
+            List<Producto> productosStockBajo = servicioAdmin.obtenerProductosConStockBajo();
+            
+            StringBuilder mensaje = new StringBuilder();
+            mensaje.append("⚠️ ALERTA DE INVENTARIO\n\n");
+            mensaje.append("Hay ").append(cantidadStockBajo).append(" producto(s) con stock bajo:\n\n");
+            
+            int mostrar = Math.min(productosStockBajo.size(), 5);
+            for (int i = 0; i < mostrar; i++) {
+                Producto p = productosStockBajo.get(i);
+                String estado = p.getCantidad() == 0 ? "❌ SIN STOCK" : "⚠️ " + p.getCantidad() + " unid.";
+                mensaje.append("• ").append(p.getDescripcion()).append(" - ").append(estado).append("\n");
+            }
+            
+            if (productosStockBajo.size() > 5) {
+                mensaje.append("\n... y ").append(productosStockBajo.size() - 5).append(" más.\n");
+            }
+            
+            mensaje.append("\n¿Desea ir a la pestaña de Reportes para ver el detalle?");
+            
+            int respuesta = JOptionPane.showConfirmDialog(this,
+                mensaje.toString(),
+                "Alerta de Stock Bajo",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+            
+            if (respuesta == JOptionPane.YES_OPTION) {
+                // Buscar el índice de la pestaña de Reportes
+                for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+                    if (tabbedPane.getTitleAt(i).equals("Reportes")) {
+                        tabbedPane.setSelectedIndex(i);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private void cargarDatosReportes() {
+        // Cargar estadísticas generales
+        double totalVentas = servicioAdmin.obtenerTotalVentas();
+        int cantidadVendida = servicioAdmin.obtenerCantidadProductosVendidos();
+        int stockBajo = servicioAdmin.contarProductosStockBajo();
+        
+        lblTotalVentas.setText(String.format("$%.2f", totalVentas));
+        lblCantidadVendida.setText(String.valueOf(cantidadVendida));
+        lblProductosStockBajo.setText(String.valueOf(stockBajo));
+        
+        // Cargar productos más vendidos
+        modeloTablaProductosMasVendidos.setRowCount(0);
+        List<EstadisticaProducto> masVendidos = servicioAdmin.obtenerProductosMasVendidos(10);
+        
+        for (EstadisticaProducto est : masVendidos) {
+            if (est.getCantidadVendida() > 0) {
+                modeloTablaProductosMasVendidos.addRow(new Object[]{
+                    est.getDescripcion(),
+                    est.getCantidadVendida(),
+                    String.format("$%.2f", est.getMontoTotal())
+                });
+            }
+        }
+        
+        // Cargar productos con stock bajo
+        modeloTablaStockBajo.setRowCount(0);
+        List<Producto> productosStockBajo = servicioAdmin.obtenerProductosConStockBajo();
+        
+        for (Producto p : productosStockBajo) {
+            modeloTablaStockBajo.addRow(new Object[]{
+                p.getCodigo(),
+                p.getDescripcion(),
+                p.getCantidad(),
+                String.format("$%.2f", p.getPrecio())
+            });
+        }
     }
     
     // Métodos para estilizar componentes
@@ -759,14 +1690,57 @@ public class PrincipalPestaña extends JFrame {
     private void cargarDatos() {
         cargarProductos();
         
-        // Solo cargar carrito y compras si no es invitado
+        // Solo cargar carrito, deseos y compras si no es invitado
         if (!usuarioActual.getUsuario().equalsIgnoreCase("invitado")) {
             actualizarCarrito();
+            cargarListaDeseos();
             cargarMisCompras();
+            
+            // Verificar si hay productos en lista de deseos con stock disponible
+            verificarProductosDeseosDisponibles();
         }
         
         if (usuarioActual.getUsuario().equalsIgnoreCase("admin")) {
             cargarProductosAdmin();
+            cargarDatosReportes();
+        }
+    }
+    
+    private void verificarProductosDeseosDisponibles() {
+        List<ItemDeseo> disponibles = servicioListaDeseos.obtenerProductosDisponibles(usuarioActual.getCodigo());
+        
+        if (!disponibles.isEmpty()) {
+            StringBuilder mensaje = new StringBuilder();
+            mensaje.append("🎉 ¡Buenas noticias!\n\n");
+            mensaje.append("Algunos productos de tu lista de deseos ya están disponibles:\n\n");
+            
+            int mostrar = Math.min(disponibles.size(), 5);
+            for (int i = 0; i < mostrar; i++) {
+                ItemDeseo item = disponibles.get(i);
+                mensaje.append("• ").append(item.getDescripcionProducto())
+                       .append(" (").append(item.getStockProducto()).append(" en stock)\n");
+            }
+            
+            if (disponibles.size() > 5) {
+                mensaje.append("\n... y ").append(disponibles.size() - 5).append(" más.\n");
+            }
+            
+            mensaje.append("\n¿Deseas ir a tu Lista de Deseos?");
+            
+            int respuesta = JOptionPane.showConfirmDialog(this,
+                mensaje.toString(),
+                "Productos Disponibles",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.INFORMATION_MESSAGE);
+            
+            if (respuesta == JOptionPane.YES_OPTION) {
+                for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+                    if (tabbedPane.getTitleAt(i).equals("Lista de Deseos")) {
+                        tabbedPane.setSelectedIndex(i);
+                        break;
+                    }
+                }
+            }
         }
     }
 
@@ -775,11 +1749,16 @@ public class PrincipalPestaña extends JFrame {
         List<Producto> productos = servicioProducto.listarProductosDisponibles();
         
         for (Producto p : productos) {
+            boolean enDeseos = !usuarioActual.getUsuario().equalsIgnoreCase("invitado") && 
+                              servicioListaDeseos.estaEnListaDeseos(usuarioActual.getCodigo(), p.getCodigo());
+            
             modeloTablaProductos.addRow(new Object[]{
                 p.getCodigo(),
                 p.getDescripcion(),
+                p.getCategoria() != null ? p.getCategoria() : "-",
                 p.getCantidad(),
-                String.format("$%.2f", p.getPrecio())
+                String.format("$%.2f", p.getPrecio()),
+                enDeseos ? "❤️" : "🤍"
             });
         }
     }
@@ -857,7 +1836,7 @@ public class PrincipalPestaña extends JFrame {
             });
         }
         
-        lblTotal.setText(String.format("Total: $%.2f", carritoActual.calcularTotal()));
+        actualizarTotalesCarrito();
     }
 
     private void eliminarDelCarrito() {
@@ -897,7 +1876,16 @@ public class PrincipalPestaña extends JFrame {
             return;
         }
 
-        double totalCompra = carritoActual.calcularTotal();
+        double subtotalCompra = carritoActual.calcularTotal();
+        double montoDescuento = 0;
+        double totalCompra = subtotalCompra;
+        
+        // Aplicar descuento si hay cupón
+        if (descuentoAplicado != null) {
+            montoDescuento = descuentoAplicado.calcularDescuento(subtotalCompra);
+            totalCompra = subtotalCompra - montoDescuento;
+        }
+        
         double presupuestoActual = usuarioActual.getPresupuesto();
         
         // Validar que tenga presupuesto suficiente
@@ -911,30 +1899,58 @@ public class PrincipalPestaña extends JFrame {
         }
         
         double presupuestoRestante = presupuestoActual - totalCompra;
+        
+        // Construir mensaje de confirmación
+        StringBuilder msgConfirmacion = new StringBuilder();
+        msgConfirmacion.append(String.format("Subtotal: $%.2f\n", subtotalCompra));
+        
+        if (descuentoAplicado != null) {
+            msgConfirmacion.append(String.format("Descuento (%s): -$%.2f\n", 
+                descuentoAplicado.getCodigo(), montoDescuento));
+        }
+        
+        msgConfirmacion.append(String.format("Total a pagar: $%.2f\n\n", totalCompra));
+        msgConfirmacion.append(String.format("Presupuesto actual: $%.2f\n", presupuestoActual));
+        msgConfirmacion.append(String.format("Presupuesto restante: $%.2f\n\n", presupuestoRestante));
+        msgConfirmacion.append("¿Confirmar compra?");
 
         int opcion = JOptionPane.showConfirmDialog(this,
-                String.format("Total a pagar: $%.2f\nPresupuesto actual: $%.2f\nPresupuesto restante: $%.2f\n\n¿Confirmar compra?", 
-                    totalCompra, presupuestoActual, presupuestoRestante),
+                msgConfirmacion.toString(),
                 "Confirmar Compra",
                 JOptionPane.YES_NO_OPTION);
         
         if (opcion == JOptionPane.YES_OPTION) {
             if (servicioCompra.registrarCompra(carritoActual)) {
+                // Registrar uso del cupón si aplica
+                if (descuentoAplicado != null) {
+                    servicioDescuento.registrarUso(descuentoAplicado.getCodigo());
+                }
+                
                 // Actualizar presupuesto del usuario
                 usuarioActual.setPresupuesto(presupuestoRestante);
                 UsuarioDAO usuarioDAO = new UsuarioDAO();
                 usuarioDAO.actualizarPresupuesto(usuarioActual.getCodigo(), presupuestoRestante);
                 
-                mostrarMensaje(this, 
-                    String.format("Compra realizada exitosamente\n\nNº de Compra: %d\nTotal pagado: $%.2f\nPresupuesto restante: $%.2f",
-                        carritoActual.getNumeroCompra(), totalCompra, presupuestoRestante),
-                    "Éxito", 
-                    JOptionPane.INFORMATION_MESSAGE);
+                // Construir mensaje de éxito
+                StringBuilder msgExito = new StringBuilder();
+                msgExito.append(String.format("Compra realizada exitosamente\n\n"));
+                msgExito.append(String.format("Nº de Compra: %d\n", carritoActual.getNumeroCompra()));
+                
+                if (descuentoAplicado != null) {
+                    msgExito.append(String.format("Descuento aplicado: $%.2f\n", montoDescuento));
+                }
+                
+                msgExito.append(String.format("Total pagado: $%.2f\n", totalCompra));
+                msgExito.append(String.format("Presupuesto restante: $%.2f", presupuestoRestante));
+                
+                mostrarMensaje(this, msgExito.toString(), "Éxito", JOptionPane.INFORMATION_MESSAGE);
                 
                 // Actualizar header con nuevo presupuesto
                 actualizarHeader();
                 
-                // Crear nuevo carrito
+                // Limpiar descuento y crear nuevo carrito
+                descuentoAplicado = null;
+                txtCodigoDescuento.setText("");
                 carritoActual = servicioCompra.crearNuevaCompra(usuarioActual.getCodigo());
                 actualizarCarrito();
                 cargarProductos();
